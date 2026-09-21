@@ -1,0 +1,52 @@
+---
+description: robots.txt — moteurs classiques + bots IA (référencement AEO/GEO)
+globs: "**/robots.txt,**/public/robots.txt"
+alwaysApply: false
+---
+
+# robots.txt — SEO + référencement IA
+
+À **chaque nouveau site public** (ou refonte), le fichier `public/robots.txt` doit expliciter les bots **moteurs** et **IA de réponse**. Ne pas se contenter de `User-agent: *`.
+
+## Obligatoire
+
+1. **Moteurs** : au minimum `Googlebot`, `Bingbot` (et `Googlebot-Image` si le site a des visuels / favicons importants).
+2. **IA — citations / recherche** (toujours `Allow: /` sur le contenu public) :
+   - `OAI-SearchBot`, `ChatGPT-User`, `GPTBot`
+   - `Claude-SearchBot`, `Claude-User`, `ClaudeBot`, `Claude-Web`, `anthropic-ai`
+   - `PerplexityBot`, `Perplexity-User`
+3. **IA / discovery — recommandé** :
+   - `Google-Extended`, `Applebot`, `Applebot-Extended`, `Amazonbot`, `DuckAssistBot`
+   - `cohere-ai`, `CCBot`, `meta-externalagent`, `Meta-WebIndexer`, `Meta-ExternalFetcher`, `Bytespider`
+4. **Sitemap** : ligne `Sitemap: https://…/sitemap.xml` (URL absolue du domaine de prod).
+5. **Fiches agents** : si le site a `/llms.txt` et `/ai.txt`, les mentionner en commentaire et `Allow: /llms.txt` + `Allow: /ai.txt`.
+
+## Règles par type de chemin
+
+- Pages **admin**, **API JSON**, zones **noindex** : `Disallow` pour tous les groupes (y compris bots IA), pas seulement `*`.
+- Ne **jamais** bloquer `/assets/js/` sur un site rendu en JS (sinon crawl vide).
+- Entre deux règles qui matchent, la plus **spécifique** gagne (RFC 9309) — écrire les `Allow` de chemins précis avant les `Disallow` larges.
+
+## Modèle minimal (site vitrine sans admin)
+
+```
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+# … (tous les bots IA listés ci-dessus, chacun avec Allow: /)
+
+User-agent: *
+Allow: /
+
+Sitemap: https://example.com/sitemap.xml
+```
+
+## Référence interne
+
+Voir `bc-ramonville/public/robots.txt` pour un site avec admin, API et MCP.
