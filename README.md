@@ -59,3 +59,7 @@ python tools/mqtt-simulate-mimir.py localhost
 ```
 
 Contrat topics : [docs/mqtt-yggdrasil.md](docs/mqtt-yggdrasil.md).
+
+## Configuration Cursor (local)
+
+Le dossier `.cursor/` (rules IDE) est **ignore par git** et ne doit **pas** etre pousse sur GitHub. Chaque poste garde ses propres rules en local.
