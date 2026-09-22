@@ -1,5 +1,6 @@
 .env
 .env.local
+.cursor/
 *.pyc
 __pycache__/
 .pytest_cache/
