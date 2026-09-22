@@ -9,6 +9,13 @@ Prototype d **aide a la decision** — pas un dispositif medical certifie. Le mo
 - Docker Desktop (Windows)
 - Optionnel : Ollama sur l hote (`llama3.2:3b` ou modele leger)
 
+Pour activer la reformulation IA locale :
+
+```powershell
+ollama pull llama3.2:3b
+ollama serve
+```
+
 ## Demarrage
 
 ```powershell
@@ -21,7 +28,23 @@ docker compose up --build
 - API : http://localhost:8000/docs
 - MQTT : localhost:1883
 
-Sans Ollama, le chat utilise le **mode template** (badge `template`).
+Sans Ollama, le chat utilise automatiquement une reponse securisee hors ligne.
+
+## Connexion
+
+Comptes de demonstration : `raphael`, `elisa`, `elsa`, `jovani`, `carine`.
+
+Mot de passe commun : `qwerty123`.
+
+`raphael` dispose des commandes de crise et de reinitialisation. Les autres comptes
+sont limites a leur propre profil medical.
+
+Apres une ancienne version du projet, recreer une fois la base de demonstration :
+
+```powershell
+docker compose down -v
+docker compose up --build
+```
 
 ## Demo soutenance (60 s)
 

@@ -6,7 +6,7 @@ Automatises T01-T10 : `backend/tests/test_rules.py` (`pytest`).
 |----|--------|---------|
 | T01 | Elisa + mal de tete | AINS ecartes ; paracetamol si stock |
 | T02 | Elisa + demande ibuprofene | Refus / pas ibuprofene recommande |
-| T03 | Marc (warfarine) + ibuprofene | Alerte interaction |
+| T03 | Raphael (warfarine) + ibuprofene | Alerte interaction |
 | T04 | Stock paracetamol 0 | Substitution ou protocole alternatif |
 | T05 | Douleur thoracique | Escalade medecin |
 | T06 | Patient inconnu | Refus / regle patient_unknown |
@@ -14,7 +14,7 @@ Automatises T01-T10 : `backend/tests/test_rules.py` (`pytest`).
 | T08 | Crise 15 % | Triage non vide |
 | T09 | Rationnement | Autonomie rationnement >= demande (post-crise) |
 | T10 | Crise + triage | Priorites ordonnees |
-| T11 | Sofia + mal de tete | Paracetamol OK sans exclusion allergie |
+| T11 | Elsa + mal de tete | Paracetamol OK sans exclusion allergie |
 | T12 | Confirm sans stock | HTTP 400 stock insuffisant |
 | T13 | Reset demo | Stocks et sante equipage reinitialises |
 | T14 | Journal apres confirm | Entree care_confirm presente |

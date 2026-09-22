@@ -1,20 +1,53 @@
 const base = import.meta.env.VITE_API_URL || "";
+const TOKEN_KEY = "eir_access_token";
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+export const session = {
+  getToken: () => sessionStorage.getItem(TOKEN_KEY),
+  setToken: (token: string) => sessionStorage.setItem(TOKEN_KEY, token),
+  clear: () => sessionStorage.removeItem(TOKEN_KEY),
+};
+
+async function request<T>(path: string, init?: RequestInit, authenticated = true): Promise<T> {
   const url = path.startsWith("http") ? path : `${base}${path}`;
+  const token = session.getToken();
   const res = await fetch(url, {
     ...init,
     headers: {
       "Content-Type": "application/json",
+      ...(authenticated && token ? { Authorization: `Bearer ${token}` } : {}),
       ...(init?.headers || {}),
     },
   });
+  if (res.status === 401 && authenticated) {
+    session.clear();
+    window.dispatchEvent(new Event("eir:unauthorized"));
+  }
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(text || res.statusText);
+    const raw = await res.text();
+    let message = raw || res.statusText;
+    try {
+      const parsed = JSON.parse(raw) as { detail?: string };
+      message = parsed.detail || message;
+    } catch {
+      // The API can return a plain-text reverse-proxy error.
+    }
+    throw new Error(message);
   }
   return res.json() as Promise<T>;
 }
+
+export type AuthUser = {
+  username: string;
+  full_name: string;
+  role: "admin" | "crew";
+  crew_member_code: string;
+};
+
+export type LoginResponse = {
+  access_token: string;
+  token_type: string;
+  user: AuthUser;
+};
 
 export type CrewMember = {
   code: string;
@@ -52,6 +85,29 @@ export type ChatResponse = {
   llm_mode: string;
 };
 
+export type TriageEntry = {
+  crew_member_code: string;
+  full_name: string;
+  health_status: string;
+  severity_score: number;
+  triage_priority: number;
+};
+
+export type JournalEntry = {
+  id: number;
+  action: string;
+  summary: string;
+  payload: Record<string, unknown>;
+  created_at: string;
+};
+
+export type SecurityAlert = {
+  id: number;
+  source: string;
+  payload: Record<string, unknown>;
+  created_at: string;
+};
+
 export type AutonomyCompare = {
   on_demand: { global_days: number; drugs: { drug_code: string; drug_name: string; stock_units: number; days_remaining: number }[]; sick_count: number; crew_size: number };
   rationing_quarantine: { global_days: number; drugs: { drug_code: string; drug_name: string; stock_units: number; days_remaining: number }[]; sick_count: number; crew_size: number };
@@ -60,6 +116,16 @@ export type AutonomyCompare = {
 };
 
 export const api = {
+  login: (username: string, password: string) =>
+    request<LoginResponse>(
+      "/api/auth/login",
+      {
+        method: "POST",
+        body: JSON.stringify({ username, password }),
+      },
+      false
+    ),
+  me: () => request<AuthUser>("/api/auth/me"),
   crew: () => request<CrewMember[]>("/api/crew"),
   drugs: () => request<Drug[]>("/api/drugs"),
   chat: (crew_member_code: string, message: string, session_id = "default") =>
@@ -73,25 +139,12 @@ export const api = {
       body: JSON.stringify({ crew_member_code, drug_code, dose_mg }),
     }),
   autonomy: () => request<AutonomyCompare>("/api/autonomy"),
-  triage: () =>
-    request<
-      {
-        crew_member_code: string;
-        full_name: string;
-        health_status: string;
-        severity_score: number;
-        triage_priority: number;
-      }[]
-    >("/api/triage"),
+  triage: () => request<TriageEntry[]>("/api/triage"),
   triggerCrisis: () => request("/api/crisis/trigger", { method: "POST" }),
   rationing: () => request<AutonomyCompare>("/api/crisis/rationing", { method: "POST" }),
   forceStockZero: (code: string) =>
     request("/api/demo/force-stock-zero/" + code, { method: "POST" }),
   resetDemo: () => request("/api/demo/reset", { method: "POST" }),
-  journal: () =>
-    request<{ id: number; action: string; summary: string; created_at: string }[]>("/api/journal"),
-  securityAlerts: () =>
-    request<{ id: number; source: string; payload: Record<string, unknown>; created_at: string }[]>(
-      "/api/security/alerts"
-    ),
+  journal: () => request<JournalEntry[]>("/api/journal"),
+  securityAlerts: () => request<SecurityAlert[]>("/api/security/alerts"),
 };

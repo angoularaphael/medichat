@@ -1,32 +1,60 @@
 from sqlalchemy.orm import Session
 
-from app.models.entities import CrewMember, CrisisState, Drug, DrugInteraction, DrugSubstitution, StockMovement
-from app.services import crisis
+from app.config import settings
+from app.models.entities import (
+    CrewMember,
+    CrisisState,
+    Drug,
+    DrugInteraction,
+    DrugSubstitution,
+    StockMovement,
+    User,
+)
+from app.services import auth, crisis
+
+
+DEMO_USERS = [
+    ("elisa", "Elisa", "crew"),
+    ("raphael", "Raphael", "admin"),
+    ("elsa", "Elsa", "crew"),
+    ("jovani", "Jovani", "crew"),
+    ("carine", "Carine", "crew"),
+]
+
+
+def _seed_users(db: Session) -> None:
+    existing = {user.username for user in db.query(User).all()}
+    password_hash = auth.hash_password(settings.demo_user_password)
+    for username, full_name, role in DEMO_USERS:
+        if username not in existing:
+            db.add(
+                User(
+                    username=username,
+                    full_name=full_name,
+                    role=role,
+                    crew_member_code=username,
+                    password_hash=password_hash,
+                )
+            )
 
 
 def run_seed(db: Session) -> None:
     if db.query(CrewMember).count() > 0:
+        _seed_users(db)
+        db.commit()
         return
 
     crew = []
     names = [
-        ("elisa", "Elisa Martin", 34),
-        ("marc", "Marc Dupont", 41),
-        ("sofia", "Sofia Nguyen", 29),
-        ("jonas", "Jonas Keller", 38),
-        ("amira", "Amira Benali", 32),
+        ("elisa", "Elisa", 34),
+        ("raphael", "Raphael", 41),
+        ("elsa", "Elsa", 29),
+        ("jovani", "Jovani", 38),
+        ("carine", "Carine", 32),
     ]
-    for i in range(20):
-        if i < len(names):
-            code, name, age = names[i]
-            allergies = ["ibuprofen", "AINS"] if code == "elisa" else []
-            treatments = [{"drug_code": "warfarin", "dose_mg": 5}] if code == "marc" else []
-        else:
-            code = f"crew{i+1:02d}"
-            name = f"Astronaute {i+1}"
-            age = 28 + (i % 12)
-            allergies = []
-            treatments = []
+    for code, name, age in names:
+        allergies = ["ibuprofen", "AINS"] if code == "elisa" else []
+        treatments = [{"drug_code": "warfarin", "dose_mg": 5}] if code == "raphael" else []
         crew.append(
             CrewMember(
                 code=code,
@@ -99,6 +127,7 @@ def run_seed(db: Session) -> None:
     )
 
     crisis.get_or_create_crisis(db)
+    _seed_users(db)
     db.commit()
 
 

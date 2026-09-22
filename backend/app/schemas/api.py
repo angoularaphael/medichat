@@ -52,6 +52,24 @@ class ChatMessageResponse(BaseModel):
     llm_mode: str = "template"
 
 
+class LoginRequest(BaseModel):
+    username: str = Field(min_length=2, max_length=32)
+    password: str = Field(min_length=6, max_length=128)
+
+
+class UserOut(BaseModel):
+    username: str
+    full_name: str
+    role: str
+    crew_member_code: str
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: UserOut
+
+
 class AutonomyDrugRow(BaseModel):
     drug_code: str
     drug_name: str

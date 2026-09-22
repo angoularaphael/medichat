@@ -26,11 +26,11 @@ def test_t02_elisa_requests_ibuprofen(client):
     assert data["recommendation"] is None or data["recommendation"]["drug_code"] != "ibuprofen"
 
 
-def test_t03_marc_interaction(client):
+def test_t03_raphael_interaction(client):
     r = client.post(
         "/api/care/evaluate",
         json={
-            "crew_member_code": "marc",
+            "crew_member_code": "raphael",
             "symptoms": ["mal de tete"],
             "requested_drug_code": "ibuprofen",
         },
@@ -73,7 +73,7 @@ def test_t07_dose_too_high(client):
     r = client.post(
         "/api/care/evaluate",
         json={
-            "crew_member_code": "sofia",
+            "crew_member_code": "elsa",
             "symptoms": ["mal de tete"],
             "requested_drug_code": "paracetamol",
             "requested_dose_mg": 5000,

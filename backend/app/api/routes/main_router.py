@@ -1,8 +1,11 @@
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from app.api.deps import get_current_user, require_admin
 from app.db.session import get_db
-from app.models.entities import CrewMember, Drug, StockMovement
+from app.models.entities import CrewMember, Drug, StockMovement, User
 from app.schemas.api import (
     AutonomyCompareResponse,
     AutonomyDrugRow,
@@ -22,6 +25,11 @@ from app.seed import demo_data
 from app.models.entities import ChatMessage
 
 router = APIRouter(prefix="/api")
+
+
+def _assert_profile_access(user: User, crew_member_code: str) -> None:
+    if user.role != "admin" and user.crew_member_code != crew_member_code:
+        raise HTTPException(403, "Ce profil equipage ne vous appartient pas")
 
 
 @router.get("/health")
@@ -60,7 +68,12 @@ def list_drugs(db: Session = Depends(get_db)):
 
 
 @router.post("/care/evaluate", response_model=CareEvaluationResult)
-def care_evaluate(body: CareEvaluateRequest, db: Session = Depends(get_db)):
+def care_evaluate(
+    body: CareEvaluateRequest,
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(get_current_user)],
+):
+    _assert_profile_access(user, body.crew_member_code)
     return rules_engine.evaluate_care(
         db,
         crew_member_code=body.crew_member_code,
@@ -71,7 +84,12 @@ def care_evaluate(body: CareEvaluateRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/care/confirm")
-def care_confirm(body: CareConfirmRequest, db: Session = Depends(get_db)):
+def care_confirm(
+    body: CareConfirmRequest,
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(get_current_user)],
+):
+    _assert_profile_access(user, body.crew_member_code)
     member = db.query(CrewMember).filter(CrewMember.code == body.crew_member_code).first()
     if not member:
         raise HTTPException(404, "Patient inconnu")
@@ -108,7 +126,12 @@ def care_confirm(body: CareConfirmRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/chat/message", response_model=ChatMessageResponse)
-async def chat_message(body: ChatMessageRequest, db: Session = Depends(get_db)):
+async def chat_message(
+    body: ChatMessageRequest,
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(get_current_user)],
+):
+    _assert_profile_access(user, body.crew_member_code)
     symptoms = ollama_client.extract_symptoms(body.message)
     evaluation = rules_engine.evaluate_care(
         db,
@@ -164,7 +187,10 @@ def get_triage(db: Session = Depends(get_db)):
 
 
 @router.post("/crisis/trigger", response_model=CrisisTriggerResponse)
-def trigger_crisis(db: Session = Depends(get_db)):
+def trigger_crisis(
+    db: Annotated[Session, Depends(get_db)],
+    _admin: Annotated[User, Depends(require_admin)],
+):
     result = crisis.trigger_crisis(db)
     auto = result["autonomy_before"]
     mqtt_service.publish_crisis(
@@ -184,7 +210,10 @@ def trigger_crisis(db: Session = Depends(get_db)):
 
 
 @router.post("/crisis/rationing", response_model=AutonomyCompareResponse)
-def activate_rationing(db: Session = Depends(get_db)):
+def activate_rationing(
+    db: Annotated[Session, Depends(get_db)],
+    _admin: Annotated[User, Depends(require_admin)],
+):
     data = crisis.activate_rationing(db)
     return AutonomyCompareResponse(
         on_demand=_map_autonomy(data["on_demand"]),
@@ -195,7 +224,11 @@ def activate_rationing(db: Session = Depends(get_db)):
 
 
 @router.post("/demo/force-stock-zero/{drug_code}")
-def force_stock_zero(drug_code: str, db: Session = Depends(get_db)):
+def force_stock_zero(
+    drug_code: str,
+    db: Annotated[Session, Depends(get_db)],
+    _admin: Annotated[User, Depends(require_admin)],
+):
     drug = db.query(Drug).filter(Drug.code == drug_code).first()
     if not drug:
         raise HTTPException(404, "Medicament inconnu")
@@ -212,7 +245,10 @@ def force_stock_zero(drug_code: str, db: Session = Depends(get_db)):
 
 
 @router.post("/demo/reset")
-def reset_demo(db: Session = Depends(get_db)):
+def reset_demo(
+    db: Annotated[Session, Depends(get_db)],
+    _admin: Annotated[User, Depends(require_admin)],
+):
     demo_data.reset_demo(db)
     journal.log_decision(db, action="demo_reset", summary="Jeu de donnees demo reinitialise")
     return {"ok": True}
@@ -234,7 +270,10 @@ def get_journal(db: Session = Depends(get_db)):
 
 
 @router.get("/security/alerts", response_model=list[SecurityAlertOut])
-def security_alerts(db: Session = Depends(get_db)):
+def security_alerts(
+    db: Annotated[Session, Depends(get_db)],
+    _admin: Annotated[User, Depends(require_admin)],
+):
     alerts = mqtt_service.list_security_alerts(db)
     return [
         SecurityAlertOut(

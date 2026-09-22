@@ -11,6 +11,18 @@ SYMPTOM_PATTERNS = [
     (re.compile(r"mal de t[êe]te|cephalee|headache", re.I), "mal de tete"),
     (re.compile(r"douleur thoracique|chest pain", re.I), "douleur thoracique"),
     (re.compile(r"fi[eè]vre|fever", re.I), "fievre"),
+    (re.compile(r"naus[ée]e?|envie de vomir|vomissement", re.I), "nausee"),
+    (re.compile(r"toux|cough", re.I), "toux"),
+    (re.compile(r"mal au ventre|douleur abdominale|abdominal", re.I), "douleur abdominale"),
+    (re.compile(r"vertige|[ée]tourdissement|dizzy", re.I), "vertige"),
+    (
+        re.compile(
+            r"essouffl(?:e|ee|é|ée)|difficult[ée] [àa] respirer|mal [àa] respirer|dyspn[ée]e",
+            re.I,
+        ),
+        "difficulte respiratoire",
+    ),
+    (re.compile(r"mal de gorge|gorge.*mal|sore throat", re.I), "mal de gorge"),
 ]
 
 
@@ -72,7 +84,9 @@ async def reformulate_with_ollama(
             resp = await client.post(url, json=payload)
             resp.raise_for_status()
             data = resp.json()
-            content = data.get("message", {}).get("content") or template_reply(evaluation)
-            return content.strip(), "ollama"
+            content = str(data.get("message", {}).get("content") or "").strip()
+            if not content:
+                return template_reply(evaluation), "template"
+            return content, "ollama"
     except Exception:
         return template_reply(evaluation), "template"

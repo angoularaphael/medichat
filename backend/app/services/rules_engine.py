@@ -6,7 +6,12 @@ from app.services import substitution
 
 
 AINS_CLASS = "AINS"
-RED_FLAG_SYMPTOMS = {"chest_pain", "douleur_thoracique", "douleur thoracique"}
+RED_FLAG_SYMPTOMS = {
+    "chest_pain",
+    "douleur_thoracique",
+    "douleur thoracique",
+    "difficulte_respiratoire",
+}
 
 
 def _symptom_indication(symptoms: list[str]) -> str:
@@ -15,6 +20,10 @@ def _symptom_indication(symptoms: list[str]) -> str:
         return "pain_mild"
     if "fievre" in s or "fever" in s:
         return "fever"
+    if "nausee" in s or "nausée" in s or "vomissement" in s:
+        return "nausea"
+    if "asthme" in s or "sifflement" in s:
+        return "asthma"
     return "general"
 
 
@@ -23,8 +32,12 @@ def _candidate_drugs(db: Session, indication: str) -> list[Drug]:
         codes = ["paracetamol", "ibuprofen", "aspirin"]
     elif indication == "fever":
         codes = ["paracetamol", "ibuprofen"]
+    elif indication == "nausea":
+        codes = ["ondansetron"]
+    elif indication == "asthma":
+        codes = ["salbutamol"]
     else:
-        codes = ["paracetamol"]
+        codes = []
     drugs = db.query(Drug).filter(Drug.code.in_(codes)).all()
     return sorted(drugs, key=lambda d: codes.index(d.code) if d.code in codes else 99)
 
@@ -99,6 +112,20 @@ def evaluate_care(
 
     indication = _symptom_indication(symptoms)
     candidates = _candidate_drugs(db, indication)
+
+    if not candidates and not requested_drug_code:
+        rules.append("symptom_requires_assessment")
+        return CareEvaluationResult(
+            excluded_options=[],
+            recommendation=None,
+            escalate_to_physician=False,
+            urgency="assessment",
+            rules_fired=rules,
+            non_drug_protocol=(
+                "Symptome enregistre. Repos, hydratation et surveillance des constantes. "
+                "Demandez une evaluation medicale si le symptome persiste ou s'aggrave."
+            ),
+        )
 
     if requested_drug_code:
         req = db.query(Drug).filter(Drug.code == requested_drug_code).first()

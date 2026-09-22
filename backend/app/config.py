@@ -12,6 +12,10 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:5173"
     crew_size: int = 20
     crisis_sick_ratio: float = 0.15
+    jwt_secret: str = "change-me-in-production"
+    jwt_algorithm: str = "HS256"
+    jwt_access_expire_minutes: int = 480
+    demo_user_password: str = "qwerty123"
 
     @property
     def cors_origin_list(self) -> list[str]:
