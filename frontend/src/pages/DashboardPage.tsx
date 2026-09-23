@@ -253,7 +253,7 @@ export default function DashboardPage() {
             </article>
             <article>
               <h3>Serre de bord</h3>
-              <p>Controle des plantes qui remplacent les antibiotiques quand les flacons sont vides.</p>
+              <p>Plantes, riz, gingembre et cuve probiotique. Relais quand les flacons sont vides ou interdits.</p>
               <Link className="protocol-link" to="/cultures">
                 <Leaf size={18} /> Ouvrir les cultures
               </Link>

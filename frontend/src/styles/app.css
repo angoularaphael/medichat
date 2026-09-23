@@ -1278,27 +1278,76 @@ button:disabled {
   color: inherit;
 }
 
-.plant-3d {
+.plant-portrait {
   display: grid;
-  grid-template-rows: 200px auto;
+  width: 100%;
+  height: 168px;
+  place-items: center;
   overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  background: rgba(5, 8, 22, 0.55);
+  border: 1px solid rgba(110, 231, 255, 0.12);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 50% 80%, rgba(100, 245, 189, 0.12), transparent 55%),
+    radial-gradient(circle at 50% 20%, rgba(110, 231, 255, 0.08), transparent 46%),
+    rgba(5, 8, 22, 0.55);
 }
 
-.plant-3d span,
-.plant-3d-fallback {
-  padding: 8px 10px;
-  color: var(--muted);
-  font-size: 12px;
+.plant-portrait img {
+  max-width: 92%;
+  max-height: 92%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 14px 22px rgba(0, 0, 0, 0.45));
+}
+
+.plant-portrait.compact {
+  width: 52px;
+  height: 52px;
+  min-width: 52px;
+  border-radius: 14px;
+}
+
+.plant-portrait.compact img {
+  max-width: 86%;
+  max-height: 86%;
+}
+
+.plant-silhouette {
+  display: block;
+  width: 42%;
+  height: 58%;
+  border-radius: 40% 40% 32% 32%;
+  background: linear-gradient(180deg, rgba(100, 245, 189, 0.55), rgba(110, 231, 255, 0.18));
+}
+
+.plant-portrait.oryza .plant-silhouette {
+  width: 58%;
+  height: 28%;
+  border-radius: 99px;
+  background: linear-gradient(90deg, #d7c48a, #f3e6b8 40%, #c4ae70);
+}
+
+.plant-portrait.zingiber .plant-silhouette {
+  width: 62%;
+  height: 34%;
+  border-radius: 18px 40px 18px 40px;
+  background: linear-gradient(120deg, #c45c1a, #ef8a3a);
+}
+
+.plant-portrait.lactobacillus .plant-silhouette {
+  width: 18%;
+  height: 62%;
+  border-radius: 10px 10px 6px 6px;
+  background: linear-gradient(180deg, rgba(110, 231, 255, 0.2), rgba(100, 245, 189, 0.7));
+  box-shadow: 14px 0 0 rgba(100, 245, 189, 0.35), -14px 0 0 rgba(110, 231, 255, 0.28);
 }
 
 .plant-open {
   display: grid;
   width: 100%;
   min-height: 44px;
-  gap: 4px;
+  gap: 8px;
   padding: 0;
   border: 0;
   background: transparent;
@@ -2196,6 +2245,10 @@ button:disabled {
   .plant-grid,
   .profile-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  .plant-portrait {
+    height: 200px;
   }
 
   .plant-actions {

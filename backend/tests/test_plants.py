@@ -132,6 +132,29 @@ def test_empty_smecta_falls_back_to_rice(client):
     assert data["plant_recommendation"]["plant_code"] == "oryza"
 
 
+def test_plants_include_probiotic(client):
+    plants = {item["code"]: item for item in client.get("/api/plants").json()}
+    assert "lactobacillus" in plants
+    assert plants["lactobacillus"]["replaces_drug_class"] == "probiotic"
+    assert plants["lactobacillus"]["ready"] is True
+
+
+def test_empty_rice_falls_back_to_probiotic(client):
+    client.post("/api/demo/reset")
+    client.post("/api/demo/force-stock-zero/smecta")
+    client.post("/api/demo/force-stock-zero/ors")
+    client.post("/api/demo/force-stock-zero/loperamide")
+    client.post("/api/plants/oryza/harvest")
+    client.post("/api/plants/oryza/harvest")
+    response = client.post(
+        "/api/care/evaluate",
+        json={"crew_member_code": "elsa", "symptoms": ["diarrhee"]},
+    )
+    data = response.json()
+    assert data["recommendation"] is None
+    assert data["plant_recommendation"]["plant_code"] == "lactobacillus"
+
+
 def test_para_allergy_uses_other_drug_if_available(client):
     client.patch("/api/crew/elsa/profile", json={"allergies": ["paracetamol"]})
     response = client.post(

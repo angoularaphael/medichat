@@ -102,6 +102,18 @@ DEFAULT_PLANTS = [
         "notes": "Rhizome anti-nausee. Relais si ondansetron et meclizine sont vides.",
         "description": "Gingembre orbital, etudie pour le mal de l'espace. Macher une lamelle ou infusion tiede contre nausees et vomissements quand les antiemetiques synthetiques manquent. Eviter en reflux severe.",
     },
+    {
+        "code": "lactobacillus",
+        "name": "Cuve Lactobacillus",
+        "species": "Lactobacillus plantarum",
+        "indication": "flora",
+        "replaces_drug_class": "probiotic",
+        "biomass_percent": 86.0,
+        "growth_rate": 7.4,
+        "status": "ready",
+        "notes": "Probiotique de bord. Restaure la flore apres antibiotiques ou diarrhee. Pas un pathogene, pas un antibiotique.",
+        "description": "Bioreacteur Lactobacillus en cuve fermee, souche alimentaire. Bonne idee a bord: refaire la flore apres amoxicilline, azithromycine ou diarrhee, et aider l'hydratation. Interdit: cultiver des bacteries pathogenes ou 'fabriquer' un antibiotique sans confinement. Usage oral du ferment, jamais d'inoculation cutanee.",
+    },
 ]
 
 def _refresh_status(plant: PlantCulture) -> None:
@@ -167,7 +179,7 @@ def find_ready_plant(db: Session, indication: str) -> PlantCulture | None:
     if indication in {"nausea", "motion"}:
         indications.extend(["nausea", "motion"])
     if indication == "diarrhea":
-        indications.append("diarrhea")
+        indications.extend(["diarrhea", "flora"])
     rows = (
         db.query(PlantCulture)
         .filter(PlantCulture.indication.in_(indications))

@@ -1,11 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { Droplets, Leaf, SunMedium } from "lucide-react";
-import { lazy, Suspense, useState } from "react";
+import { useState } from "react";
 import { api, PlantCulture } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
-
-const PlantViewer = lazy(() => import("../components/PlantViewer"));
+import PlantPortrait from "../components/PlantPortrait";
 
 const statusLabel: Record<string, string> = {
   ready: "Prete a recolter",
@@ -37,8 +36,9 @@ export default function CulturesPage() {
           <span className="eyebrow">Bioregeneration / Serre de bord</span>
           <h1>Cultures medicinales</h1>
           <p>
-            Cliquez une plante pour la faire tourner en 3D. Quand un medicament est interdit ou epuise,
-            Medichat pioche ici.
+            Photos reelles des cultures, fond retire. Cliquez une fiche pour le protocole.
+            Quand un medicament est interdit ou epuise, Medichat pioche ici.
+            La cuve bacterienne est un probiotique (Lactobacillus), jamais un pathogene.
           </p>
         </div>
       </div>
@@ -93,15 +93,11 @@ function PlantCard({
       transition={{ delay: index * 0.06 }}
     >
       <button className="plant-open" type="button" onClick={onOpen}>
+        <PlantPortrait code={plant.code} name={plant.name} />
         <span className={`plant-status ${plant.status}`}>{statusLabel[plant.status] ?? plant.status}</span>
         <strong>{plant.name}</strong>
         <small>{plant.species}</small>
       </button>
-      {open && (
-        <Suspense fallback={<div className="plant-3d-fallback">Chargement du modele 3D...</div>}>
-          <PlantViewer code={plant.code} />
-        </Suspense>
-      )}
       <p>{open ? plant.description || plant.notes : plant.notes}</p>
       <div className="plant-meta">
         <span>Relais</span>

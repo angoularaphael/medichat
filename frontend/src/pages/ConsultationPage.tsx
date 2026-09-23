@@ -15,6 +15,7 @@ import {
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { api, CareEvaluation } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
+import PlantPortrait from "../components/PlantPortrait";
 
 type ChatLine = {
   id: string;
@@ -276,7 +277,11 @@ export default function ConsultationPage() {
                       <i>Serre de bord</i>
                     </div>
                     <div className="drug-name">
-                      <span>{evaluation.plant_recommendation.plant_name.charAt(0)}</span>
+                      <PlantPortrait
+                        compact
+                        code={evaluation.plant_recommendation.plant_code}
+                        name={evaluation.plant_recommendation.plant_name}
+                      />
                       <div>
                         <h3>{evaluation.plant_recommendation.plant_name}</h3>
                         <p>{evaluation.plant_recommendation.plant_code}</p>

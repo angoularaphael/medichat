@@ -115,7 +115,10 @@ def _symptom_indication(symptoms: list[str]) -> str:
 
 def _support_text(indication: str) -> str:
     if indication == "diarrhea":
-        return " Hydratation obligatoire (sels de rehydration). Relais alimentaire: riz nature de la serre (oryza)."
+        return (
+            " Hydratation obligatoire (sels de rehydration). Relais alimentaire: riz nature (oryza). "
+            "Ensuite cuve Lactobacillus pour refaire la flore, jamais une culture pathogene."
+        )
     if indication in {"nausea", "motion"}:
         return " Petites gorgees, gingembre de bord si disponible, eviter les repas gras."
     if indication == "constipation":
