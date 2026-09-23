@@ -92,6 +92,46 @@ def test_paracetamol_allergy_falls_back_to_plant(client):
     assert data["plant_recommendation"]["plant_code"] == "salix"
 
 
+def test_diarrhea_recommends_smecta(client):
+    response = client.post(
+        "/api/care/evaluate",
+        json={"crew_member_code": "elsa", "symptoms": ["diarrhee", "vomissement"]},
+    )
+    data = response.json()
+    assert data["recommendation"]["drug_code"] == "smecta"
+    assert "riz" in data["recommendation"]["rationale"].lower()
+
+
+def test_vomiting_recommends_ondansetron(client):
+    response = client.post(
+        "/api/care/evaluate",
+        json={"crew_member_code": "elsa", "symptoms": ["vomissement"]},
+    )
+    assert response.json()["recommendation"]["drug_code"] == "ondansetron"
+
+
+def test_constipation_recommends_macrogol(client):
+    response = client.post(
+        "/api/care/evaluate",
+        json={"crew_member_code": "jovani", "symptoms": ["constipation"]},
+    )
+    assert response.json()["recommendation"]["drug_code"] == "macrogol"
+
+
+def test_empty_smecta_falls_back_to_rice(client):
+    client.post("/api/demo/reset")
+    client.post("/api/demo/force-stock-zero/smecta")
+    client.post("/api/demo/force-stock-zero/ors")
+    client.post("/api/demo/force-stock-zero/loperamide")
+    response = client.post(
+        "/api/care/evaluate",
+        json={"crew_member_code": "elsa", "symptoms": ["diarrhee"]},
+    )
+    data = response.json()
+    assert data["recommendation"] is None
+    assert data["plant_recommendation"]["plant_code"] == "oryza"
+
+
 def test_para_allergy_uses_other_drug_if_available(client):
     client.patch("/api/crew/elsa/profile", json={"allergies": ["paracetamol"]})
     response = client.post(

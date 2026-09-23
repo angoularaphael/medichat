@@ -10,6 +10,8 @@ const PALETTES: Record<string, { leaf: string; flower: string; stem: string }> =
   mentha: { leaf: "#2ecc71", flower: "#7bed9f", stem: "#1e7a45" },
   spirulina: { leaf: "#1abc9c", flower: "#48dbfb", stem: "#0e6b62" },
   salix: { leaf: "#c4d35a", flower: "#f0e68c", stem: "#6b7a32" },
+  oryza: { leaf: "#7cb342", flower: "#f6e27a", stem: "#8d6e3a" },
+  zingiber: { leaf: "#43a047", flower: "#ef6c00", stem: "#6d4c41" },
 };
 
 function PlantMesh({ code, spinning }: { code: string; spinning: boolean }) {

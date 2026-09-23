@@ -78,6 +78,30 @@ DEFAULT_PLANTS = [
         "notes": "Soutien nutritionnel. Ne remplace pas un antalgique ni un antibiotique.",
         "description": "Cyanobacterie en photobioreacteur. Proteines, fer, soutien apres effort ou infection. Ce n'est pas un medicament de crise: on l'utilise en recuperation, jamais a la place d'un relais therapeutique.",
     },
+    {
+        "code": "oryza",
+        "name": "Riz orbital",
+        "species": "Oryza sativa",
+        "indication": "diarrhea",
+        "replaces_drug_class": "adsorbent",
+        "biomass_percent": 88.0,
+        "growth_rate": 5.5,
+        "status": "ready",
+        "notes": "Riz nature et eau de riz. Relais du Smecta et des sels si la diarrhee continue.",
+        "description": "Riz hydroponique compact. En diarrhee ou vomissements, le riz nature et l'eau de riz lient les selles, apportent de l'energie et se digerent bien en microgravite. Ce n'est pas un antibiotique: on l'associe a l'hydratation, puis au Smecta s'il reste en stock.",
+    },
+    {
+        "code": "zingiber",
+        "name": "Gingembre de cabine",
+        "species": "Zingiber officinale",
+        "indication": "nausea",
+        "replaces_drug_class": "antiemetic",
+        "biomass_percent": 74.0,
+        "growth_rate": 4.2,
+        "status": "ready",
+        "notes": "Rhizome anti-nausee. Relais si ondansetron et meclizine sont vides.",
+        "description": "Gingembre orbital, etudie pour le mal de l'espace. Macher une lamelle ou infusion tiede contre nausees et vomissements quand les antiemetiques synthetiques manquent. Eviter en reflux severe.",
+    },
 ]
 
 def _refresh_status(plant: PlantCulture) -> None:
@@ -140,6 +164,10 @@ def find_ready_plant(db: Session, indication: str) -> PlantCulture | None:
     indications = [indication]
     if indication == "fever":
         indications.append("pain_mild")
+    if indication in {"nausea", "motion"}:
+        indications.extend(["nausea", "motion"])
+    if indication == "diarrhea":
+        indications.append("diarrhea")
     rows = (
         db.query(PlantCulture)
         .filter(PlantCulture.indication.in_(indications))

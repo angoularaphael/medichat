@@ -5,7 +5,7 @@ import { Navigate, useParams } from "react-router-dom";
 import { api } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 
-const SUGGESTED = ["paracetamol", "ibuprofen", "AINS", "aspirin", "amoxicillin", "azithromycin"];
+const SUGGESTED = ["paracetamol", "ibuprofen", "AINS", "smecta", "amoxicillin", "azithromycin"];
 
 function compressImage(source: string): Promise<string> {
   return new Promise((resolve, reject) => {

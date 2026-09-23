@@ -28,8 +28,10 @@ ALLERGY_ALIASES = {
     "amoxicillin": "amoxicillin",
     "azithromycine": "azithromycin",
     "azithromycin": "azithromycin",
-    "ains": "ains",
-    "nsaid": "ains",
+    "smecta": "smecta",
+    "diosmectite": "smecta",
+    "imodium": "loperamide",
+    "loperamide": "loperamide",
 }
 
 
@@ -88,17 +90,37 @@ ONBOARD_WATCH_24H = (
 
 def _symptom_indication(symptoms: list[str]) -> str:
     s = " ".join(symptoms).lower()
-    if "headache" in s or "mal de tete" in s or "mal de tête" in s or "cephalee" in s:
+    if "headache" in s or "mal de tete" in s or "mal de tête" in s or "cephalee" in s or "mal de dos" in s:
         return "pain_mild"
+    if "diarrh" in s or "selles liquides" in s or "gastro" in s:
+        return "diarrhea"
+    if "constip" in s or "pas de selle" in s or "ventre bloque" in s:
+        return "constipation"
+    if "reflux" in s or "brulure d'estomac" in s or "brûlure d'estomac" in s or "aigreur" in s:
+        return "reflux"
     if "infection" in s or "plaie" in s or "mal de gorge" in s or "angine" in s:
         return "infection"
     if "fievre" in s or "fever" in s:
         return "fever"
-    if "nausee" in s or "nausée" in s or "vomissement" in s:
+    if "mal de l'espace" in s or "cinetose" in s or "cinétose" in s or "mal des transports" in s:
+        return "motion"
+    if "nausee" in s or "nausée" in s or "vomissement" in s or "envie de vomir" in s:
         return "nausea"
     if "asthme" in s or "sifflement" in s:
         return "asthma"
+    if "congestion" in s or "nez bouche" in s or "sinus" in s:
+        return "congestion"
     return "general"
+
+
+def _support_text(indication: str) -> str:
+    if indication == "diarrhea":
+        return " Hydratation obligatoire (sels de rehydration). Relais alimentaire: riz nature de la serre (oryza)."
+    if indication in {"nausea", "motion"}:
+        return " Petites gorgees, gingembre de bord si disponible, eviter les repas gras."
+    if indication == "constipation":
+        return " Hydratation et mobilite cabine en complement du laxatif."
+    return ""
 
 
 def _plant_fallback(db: Session, indication: str, excluded: list[ExcludedOption], rules: list[str]) -> CareEvaluationResult | None:
@@ -107,8 +129,9 @@ def _plant_fallback(db: Session, indication: str, excluded: list[ExcludedOption]
         return None
     rules.append(f"plant_relay_{plant.code}")
     protocol = (
-        f"Stocks synthetiques epuises pour cette indication. "
-        f"Relais botanique embarque: recolter {plant.name} ({plant.species}). {plant.notes}"
+        f"Stocks synthetiques epuises ou contre-indiques pour cette indication. "
+        f"Relais de bord: recolter {plant.name} ({plant.species}). {plant.notes}"
+        f"{_support_text(indication)}"
     )
     return CareEvaluationResult(
         excluded_options=excluded,
@@ -125,13 +148,29 @@ def _plant_fallback(db: Session, indication: str, excluded: list[ExcludedOption]
     )
 
 
+def _default_dose(drug: Drug, indication: str, requested_drug_code: str | None, requested_dose_mg: float | None) -> float:
+    if requested_dose_mg and requested_drug_code == drug.code:
+        return requested_dose_mg
+    if indication in {"pain_mild", "fever"}:
+        return min(drug.dose_max_mg, 500.0)
+    return drug.dose_max_mg
+
+
 def _candidate_drugs(db: Session, indication: str) -> list[Drug]:
     if indication == "pain_mild":
         codes = ["paracetamol", "ibuprofen", "aspirin"]
     elif indication == "fever":
         codes = ["paracetamol", "ibuprofen"]
     elif indication == "nausea":
-        codes = ["ondansetron"]
+        codes = ["ondansetron", "meclizine"]
+    elif indication == "motion":
+        codes = ["meclizine", "ondansetron"]
+    elif indication == "diarrhea":
+        codes = ["smecta", "ors", "loperamide"]
+    elif indication == "constipation":
+        codes = ["macrogol"]
+    elif indication == "reflux":
+        codes = ["omeprazole"]
     elif indication == "asthma":
         codes = ["salbutamol"]
     elif indication == "infection":
@@ -202,13 +241,20 @@ def evaluate_care(
 
     if not candidates and not requested_drug_code:
         rules.append("symptom_requires_assessment")
+        protocol = ONBOARD_WATCH
+        if indication == "congestion":
+            protocol = (
+                "Congestion typique de microgravite (liquides vers la tete). "
+                "Hydratation, air cabine, compresses tiedes sinus. "
+                "Pas de vasoconstricteur en boucle. Avis sol en file, non bloquant."
+            )
         return CareEvaluationResult(
             excluded_options=[],
             recommendation=None,
             escalate_to_physician=False,
             urgency="assessment",
             rules_fired=rules,
-            non_drug_protocol=ONBOARD_WATCH,
+            non_drug_protocol=protocol,
         )
 
     if requested_drug_code:
@@ -244,7 +290,7 @@ def evaluate_care(
             excluded_codes.add(drug.code)
             continue
 
-        dose = requested_dose_mg if requested_drug_code == drug.code else min(drug.dose_max_mg, 500.0)
+        dose = _default_dose(drug, indication, requested_drug_code, requested_dose_mg)
         if requested_dose_mg and requested_drug_code == drug.code and dose > drug.dose_max_mg:
             rules.append("dose_exceeded")
             excluded.append(
@@ -260,7 +306,7 @@ def evaluate_care(
         if drug.code in excluded_codes:
             continue
 
-        dose = requested_dose_mg if requested_drug_code == drug.code else min(drug.dose_max_mg, 500.0)
+        dose = _default_dose(drug, indication, requested_drug_code, requested_dose_mg)
 
         if drug.stock_units <= 0:
             if drug.code not in excluded_codes:
@@ -302,7 +348,7 @@ def evaluate_care(
                 drug_code=drug.code,
                 drug_name=drug.name,
                 dose_mg=dose,
-                rationale=f"Indication {indication}, stock OK.",
+                rationale=f"Indication {indication}, stock OK.{_support_text(indication)}",
             ),
             escalate_to_physician=False,
             urgency="routine",

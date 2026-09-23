@@ -25,9 +25,9 @@ type ChatLine = {
 
 const suggestions = [
   "J'ai mal à la tête depuis ce matin",
-  "J'ai de la fièvre et je suis fatigué",
-  "J'ai une infection et mal de gorge",
-  "J'ai une douleur thoracique",
+  "Je vomis depuis ce matin",
+  "J'ai la diarrhée et le ventre liquide",
+  "Je n'arrive plus à aller à la selle",
 ];
 
 export default function ConsultationPage() {
