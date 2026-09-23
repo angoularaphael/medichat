@@ -8,7 +8,7 @@ Automatises T01-T10 : `backend/tests/test_rules.py` (`pytest`).
 | T02 | Elisa + demande ibuprofene | Refus / pas ibuprofene recommande |
 | T03 | Raphael (warfarine) + ibuprofene | Alerte interaction |
 | T04 | Stock paracetamol 0 | Substitution ou protocole alternatif |
-| T05 | Douleur thoracique | Escalade medecin |
+| T05 | Douleur thoracique | Protocole urgence embarque |
 | T06 | Patient inconnu | Refus / regle patient_unknown |
 | T07 | Dose > dose max | Refus dose |
 | T08 | Crise 15 % | Triage non vide |

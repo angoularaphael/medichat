@@ -3,9 +3,11 @@ import { Navigate, Outlet, Route, Routes } from "react-router-dom";
 import { AuthProvider, useAuth } from "./auth/AuthContext";
 import AppShell from "./components/AppShell";
 import ConsultationPage from "./pages/ConsultationPage";
+import CulturesPage from "./pages/CulturesPage";
 import DashboardPage from "./pages/DashboardPage";
 import JournalPage from "./pages/JournalPage";
 import LoginPage from "./pages/LoginPage";
+import ProfilePage from "./pages/ProfilePage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -41,7 +43,10 @@ export default function App() {
               <Route index element={<Navigate to="/dashboard" replace />} />
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/consultation" element={<ConsultationPage />} />
+              <Route path="/cultures" element={<CulturesPage />} />
               <Route path="/journal" element={<JournalPage />} />
+              <Route path="/profil" element={<ProfilePage />} />
+              <Route path="/profil/:code" element={<ProfilePage />} />
             </Route>
           </Route>
           <Route path="*" element={<Navigate to="/dashboard" replace />} />

@@ -1,8 +1,8 @@
 from sqlalchemy.orm import Session
 
 from app.models.entities import Drug, DrugInteraction, CrewMember
-from app.schemas.api import CareEvaluationResult, ExcludedOption, Recommendation
-from app.services import substitution
+from app.schemas.api import CareEvaluationResult, ExcludedOption, PlantRecommendation, Recommendation
+from app.services import plants, substitution
 
 
 AINS_CLASS = "AINS"
@@ -13,11 +13,85 @@ RED_FLAG_SYMPTOMS = {
     "difficulte_respiratoire",
 }
 
+ALLERGY_ALIASES = {
+    "para": "paracetamol",
+    "paracetamol": "paracetamol",
+    "paracetamole": "paracetamol",
+    "doliprane": "paracetamol",
+    "acetaminophen": "paracetamol",
+    "ibuprofene": "ibuprofen",
+    "ibuprofen": "ibuprofen",
+    "advil": "ibuprofen",
+    "aspirine": "aspirin",
+    "aspirin": "aspirin",
+    "amoxicilline": "amoxicillin",
+    "amoxicillin": "amoxicillin",
+    "azithromycine": "azithromycin",
+    "azithromycin": "azithromycin",
+    "ains": "ains",
+    "nsaid": "ains",
+}
+
+
+def _normalize_token(value: str) -> str:
+    table = str.maketrans("éèêëàâäùûüôöîïç", "eeeeaaauuuooiic")
+    return value.lower().translate(table).strip()
+
+
+def _allergy_tokens(member: CrewMember) -> set[str]:
+    tokens: set[str] = set()
+    for raw in member.allergies or []:
+        normalized = _normalize_token(str(raw))
+        if not normalized:
+            continue
+        tokens.add(normalized)
+        for piece in normalized.replace("/", " ").replace(",", " ").split():
+            tokens.add(piece)
+            mapped = ALLERGY_ALIASES.get(piece)
+            if mapped:
+                tokens.add(mapped)
+        mapped = ALLERGY_ALIASES.get(normalized)
+        if mapped:
+            tokens.add(mapped)
+    return tokens
+
+
+def _has_allergy(member: CrewMember, drug: Drug) -> bool:
+    tokens = _allergy_tokens(member)
+    if not tokens:
+        return False
+    substance = _normalize_token(drug.substance)
+    code = _normalize_token(drug.code)
+    name = _normalize_token(drug.name)
+    if substance in tokens or code in tokens or name in tokens:
+        return True
+    if "ains" in tokens and drug.therapeutic_class == AINS_CLASS:
+        return True
+    return False
+
+
+ONBOARD_WATCH = (
+    "Symptome enregistre a bord. Repos, hydratation et surveillance des constantes. "
+    "Une demande d'avis sol est mise en file, mais la latence et les coupures interdisent d'attendre. "
+    "Si aggravation: protocole d'urgence EIR (isolement, oxygene, monitoring)."
+)
+ONBOARD_EMERGENCY = (
+    "Protocole d'urgence embarque: immobilisation, oxygene, monitoring continu. "
+    "Message sol en file, sans attendre: le lien Terre est lent et peut se couper. "
+    "Decision immediate EIR."
+)
+ONBOARD_WATCH_24H = (
+    "Repos, hydratation, surveillance a bord. Reevaluation EIR sous 24 h. "
+    "Avis sol demande en arriere-plan, non bloquant."
+)
+
 
 def _symptom_indication(symptoms: list[str]) -> str:
     s = " ".join(symptoms).lower()
     if "headache" in s or "mal de tete" in s or "mal de tête" in s or "cephalee" in s:
         return "pain_mild"
+    if "infection" in s or "plaie" in s or "mal de gorge" in s or "angine" in s:
+        return "infection"
     if "fievre" in s or "fever" in s:
         return "fever"
     if "nausee" in s or "nausée" in s or "vomissement" in s:
@@ -25,6 +99,30 @@ def _symptom_indication(symptoms: list[str]) -> str:
     if "asthme" in s or "sifflement" in s:
         return "asthma"
     return "general"
+
+
+def _plant_fallback(db: Session, indication: str, excluded: list[ExcludedOption], rules: list[str]) -> CareEvaluationResult | None:
+    plant = plants.find_ready_plant(db, indication)
+    if not plant:
+        return None
+    rules.append(f"plant_relay_{plant.code}")
+    protocol = (
+        f"Stocks synthetiques epuises pour cette indication. "
+        f"Relais botanique embarque: recolter {plant.name} ({plant.species}). {plant.notes}"
+    )
+    return CareEvaluationResult(
+        excluded_options=excluded,
+        recommendation=None,
+        escalate_to_physician=False,
+        urgency="routine",
+        rules_fired=rules,
+        non_drug_protocol=protocol,
+        plant_recommendation=PlantRecommendation(
+            plant_code=plant.code,
+            plant_name=plant.name,
+            protocol=protocol,
+        ),
+    )
 
 
 def _candidate_drugs(db: Session, indication: str) -> list[Drug]:
@@ -36,23 +134,12 @@ def _candidate_drugs(db: Session, indication: str) -> list[Drug]:
         codes = ["ondansetron"]
     elif indication == "asthma":
         codes = ["salbutamol"]
+    elif indication == "infection":
+        codes = ["amoxicillin", "azithromycin"]
     else:
         codes = []
     drugs = db.query(Drug).filter(Drug.code.in_(codes)).all()
     return sorted(drugs, key=lambda d: codes.index(d.code) if d.code in codes else 99)
-
-
-def _has_allergy(member: CrewMember, drug: Drug) -> bool:
-    allergies = [a.lower() for a in (member.allergies or [])]
-    if drug.substance.lower() in allergies:
-        return True
-    if drug.code.lower() in allergies:
-        return True
-    if AINS_CLASS.lower() in allergies and drug.therapeutic_class == AINS_CLASS:
-        return True
-    if "ibuprofen" in allergies and drug.code == "ibuprofen":
-        return True
-    return False
 
 
 def _interaction_blocks(db: Session, member: CrewMember, drug: Drug) -> str | None:
@@ -95,7 +182,7 @@ def evaluate_care(
             escalate_to_physician=False,
             urgency="unknown",
             rules_fired=["patient_unknown"],
-            non_drug_protocol="Identification requise avant toute proposition.",
+            non_drug_protocol="Identification equipage requise avant toute proposition EIR.",
         )
 
     normalized = {s.lower().replace(" ", "_") for s in symptoms}
@@ -107,7 +194,7 @@ def evaluate_care(
             escalate_to_physician=True,
             urgency="critical",
             rules_fired=rules,
-            non_drug_protocol="Protocole d'urgence: contact medecin de bord immediat.",
+            non_drug_protocol=ONBOARD_EMERGENCY,
         )
 
     indication = _symptom_indication(symptoms)
@@ -121,10 +208,7 @@ def evaluate_care(
             escalate_to_physician=False,
             urgency="assessment",
             rules_fired=rules,
-            non_drug_protocol=(
-                "Symptome enregistre. Repos, hydratation et surveillance des constantes. "
-                "Demandez une evaluation medicale si le symptome persiste ou s'aggrave."
-            ),
+            non_drug_protocol=ONBOARD_WATCH,
         )
 
     if requested_drug_code:
@@ -206,6 +290,9 @@ def evaluate_care(
                     urgency="routine",
                     rules_fired=rules,
                 )
+            plant_result = _plant_fallback(db, indication, excluded, rules)
+            if plant_result:
+                return plant_result
             continue
 
         rules.append(f"recommend_{drug.code}")
@@ -222,6 +309,10 @@ def evaluate_care(
             rules_fired=rules,
         )
 
+    plant_result = _plant_fallback(db, indication, excluded, rules)
+    if plant_result:
+        return plant_result
+
     rules.append("no_option")
     return CareEvaluationResult(
         excluded_options=excluded,
@@ -229,5 +320,5 @@ def evaluate_care(
         escalate_to_physician=False,
         urgency="routine",
         rules_fired=rules,
-        non_drug_protocol="Repos, hydratation, surveillance. Reevaluation sous 24 h.",
+        non_drug_protocol=ONBOARD_WATCH_24H,
     )

@@ -5,6 +5,7 @@ import {
   Check,
   ChevronRight,
   HeartPulse,
+  Leaf,
   Send,
   ShieldCheck,
   Sparkles,
@@ -25,7 +26,7 @@ type ChatLine = {
 const suggestions = [
   "J'ai mal à la tête depuis ce matin",
   "J'ai de la fièvre et je suis fatigué",
-  "Je ressens des nausées",
+  "J'ai une infection et mal de gorge",
   "J'ai une douleur thoracique",
 ];
 
@@ -38,6 +39,7 @@ export default function ConsultationPage() {
   const [messages, setMessages] = useState<ChatLine[]>([]);
   const [evaluation, setEvaluation] = useState<CareEvaluation | null>(null);
   const [confirmed, setConfirmed] = useState(false);
+  const [plantHarvested, setPlantHarvested] = useState(false);
   const threadEnd = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -58,7 +60,22 @@ export default function ConsultationPage() {
       ]);
       setEvaluation(response.evaluation);
       setConfirmed(false);
+      setPlantHarvested(false);
       await queryClient.invalidateQueries({ queryKey: ["journal"] });
+    },
+  });
+
+  const plantHarvest = useMutation({
+    mutationFn: async () => {
+      if (!evaluation?.plant_recommendation) return;
+      await api.harvestPlant(evaluation.plant_recommendation.plant_code);
+    },
+    onSuccess: async () => {
+      setPlantHarvested(true);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["plants"] }),
+        queryClient.invalidateQueries({ queryKey: ["journal"] }),
+      ]);
     },
   });
 
@@ -98,8 +115,8 @@ export default function ConsultationPage() {
       <div className="page-heading">
         <div>
           <span className="eyebrow">Assistant clinique / Moteur EIR</span>
-          <h1>Consultation médicale</h1>
-          <p>Décrivez précisément vos symptômes. L'analyse combine règles de sécurité et IA locale.</p>
+          <h1>Consultation de bord</h1>
+          <p>Decrivez vos symptomes. EIR decide a bord: allergies, stocks, puis cultures si les flacons sont vides.</p>
         </div>
         <span className="ai-status"><i /> IA locale connectable</span>
       </div>
@@ -136,7 +153,7 @@ export default function ConsultationPage() {
                 <div className="assistant-orb"><HeartPulse size={28} /></div>
                 <span>Système EIR prêt</span>
                 <h2>Comment vous sentez-vous ?</h2>
-                <p>Décrivez votre ressenti avec vos propres mots. Aucun diagnostic n'est posé automatiquement.</p>
+                <p>Decrivez votre ressenti. EIR agit tout de suite; l'avis sol, s'il arrive, vient en retard.</p>
                 <div className="suggestion-grid">
                   {suggestions.map((suggestion) => (
                     <button type="button" key={suggestion} onClick={() => submit(undefined, suggestion)}>
@@ -219,7 +236,7 @@ export default function ConsultationPage() {
                 {evaluation.escalate_to_physician && (
                   <div className="urgent-card">
                     <AlertCircle size={24} />
-                    <div><span>Priorité critique</span><strong>Contacter le médecin de bord</strong><p>{evaluation.non_drug_protocol}</p></div>
+                    <div><span>Priorité critique</span><strong>Protocole d'urgence embarque</strong><p>{evaluation.non_drug_protocol}</p></div>
                   </div>
                 )}
 
@@ -252,11 +269,37 @@ export default function ConsultationPage() {
                   </div>
                 )}
 
-                {!evaluation.recommendation && !evaluation.escalate_to_physician && (
+                {evaluation.plant_recommendation && (
+                  <div className="recommendation-card glass-panel">
+                    <div className="recommendation-top">
+                      <span><Leaf size={17} /> Relais botanique</span>
+                      <i>Serre de bord</i>
+                    </div>
+                    <div className="drug-name">
+                      <span>{evaluation.plant_recommendation.plant_name.charAt(0)}</span>
+                      <div>
+                        <h3>{evaluation.plant_recommendation.plant_name}</h3>
+                        <p>{evaluation.plant_recommendation.plant_code}</p>
+                      </div>
+                    </div>
+                    <p className="rationale">{evaluation.plant_recommendation.protocol}</p>
+                    <button
+                      className={plantHarvested ? "confirmed" : ""}
+                      type="button"
+                      disabled={plantHarvest.isPending || plantHarvested}
+                      onClick={() => plantHarvest.mutate()}
+                    >
+                      {plantHarvested ? <><Check size={18} /> Recolte enregistree</> : "Recolter la culture"}
+                    </button>
+                    {plantHarvest.error && <p className="form-error" role="alert">{plantHarvest.error.message}</p>}
+                  </div>
+                )}
+
+                {!evaluation.recommendation && !evaluation.escalate_to_physician && !evaluation.plant_recommendation && (
                   <div className="protocol-card glass-panel">
                     <ShieldCheck size={22} />
-                    <span>Protocole de surveillance</span>
-                    <p>{evaluation.non_drug_protocol || "Aucune proposition médicamenteuse sécurisée."}</p>
+                    <span>Protocole de surveillance a bord</span>
+                    <p>{evaluation.non_drug_protocol || "Aucune proposition medicamenteuse. Surveillance EIR uniquement."}</p>
                   </div>
                 )}
 

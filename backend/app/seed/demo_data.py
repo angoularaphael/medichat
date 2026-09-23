@@ -10,7 +10,7 @@ from app.models.entities import (
     StockMovement,
     User,
 )
-from app.services import auth, crisis
+from app.services import auth, crisis, plants
 
 
 DEMO_USERS = [
@@ -38,16 +38,24 @@ def _seed_users(db: Session) -> None:
             )
 
 
+def _sync_demo_invariants(db: Session) -> None:
+    raphael = db.query(CrewMember).filter(CrewMember.code == "raphael").first()
+    if raphael:
+        raphael.age = 19
+    _seed_users(db)
+    plants.seed_plants(db)
+
+
 def run_seed(db: Session) -> None:
     if db.query(CrewMember).count() > 0:
-        _seed_users(db)
+        _sync_demo_invariants(db)
         db.commit()
         return
 
     crew = []
     names = [
         ("elisa", "Elisa", 34),
-        ("raphael", "Raphael", 41),
+        ("raphael", "Raphael", 19),
         ("elsa", "Elsa", 29),
         ("jovani", "Jovani", 38),
         ("carine", "Carine", 32),
@@ -128,24 +136,33 @@ def run_seed(db: Session) -> None:
 
     crisis.get_or_create_crisis(db)
     _seed_users(db)
+    plants.seed_plants(db)
+    db.commit()
+
+
+DEFAULT_STOCKS = {
+    "paracetamol": 600,
+    "ibuprofen": 200,
+    "aspirin": 150,
+    "amoxicillin": 80,
+    "azithromycin": 60,
+    "warfarin": 90,
+    "ondansetron": 40,
+    "salbutamol": 30,
+}
+
+
+def restock_drugs(db: Session) -> None:
+    for code, stock in DEFAULT_STOCKS.items():
+        drug = db.query(Drug).filter(Drug.code == code).first()
+        if drug:
+            drug.stock_units = stock
+    db.query(StockMovement).delete()
     db.commit()
 
 
 def reset_demo(db: Session) -> None:
     crisis.reset_crew_health(db)
-    defaults = {
-        "paracetamol": 600,
-        "ibuprofen": 200,
-        "aspirin": 150,
-        "amoxicillin": 80,
-        "azithromycin": 60,
-        "warfarin": 90,
-        "ondansetron": 40,
-        "salbutamol": 30,
-    }
-    for code, stock in defaults.items():
-        drug = db.query(Drug).filter(Drug.code == code).first()
-        if drug:
-            drug.stock_units = stock
-    db.query(StockMovement).delete()
+    restock_drugs(db)
+    plants.reset_plants(db)
     db.commit()

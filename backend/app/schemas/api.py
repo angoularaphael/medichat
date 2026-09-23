@@ -16,6 +16,12 @@ class Recommendation(BaseModel):
     rationale: str
 
 
+class PlantRecommendation(BaseModel):
+    plant_code: str
+    plant_name: str
+    protocol: str
+
+
 class CareEvaluationResult(BaseModel):
     excluded_options: list[ExcludedOption] = Field(default_factory=list)
     recommendation: Recommendation | None = None
@@ -23,6 +29,7 @@ class CareEvaluationResult(BaseModel):
     urgency: str = "routine"
     rules_fired: list[str] = Field(default_factory=list)
     non_drug_protocol: str | None = None
+    plant_recommendation: PlantRecommendation | None = None
 
 
 class CareEvaluateRequest(BaseModel):
@@ -62,6 +69,15 @@ class UserOut(BaseModel):
     full_name: str
     role: str
     crew_member_code: str
+    allergies: list[str] = Field(default_factory=list)
+    avatar_data: str | None = None
+    age: int | None = None
+
+
+class ProfileUpdate(BaseModel):
+    allergies: list[str] = Field(default_factory=list, max_length=20)
+    avatar_data: str | None = None
+    full_name: str | None = Field(default=None, max_length=128)
 
 
 class TokenResponse(BaseModel):

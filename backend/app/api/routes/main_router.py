@@ -17,10 +17,11 @@ from app.schemas.api import (
     ChatMessageResponse,
     CrisisTriggerResponse,
     DecisionLogEntry,
+    ProfileUpdate,
     SecurityAlertOut,
     TriageEntry,
 )
-from app.services import autonomy, crisis, journal, mqtt_service, ollama_client, rules_engine, triage
+from app.services import autonomy, crisis, journal, mqtt_service, ollama_client, plants, rules_engine, triage
 from app.seed import demo_data
 from app.models.entities import ChatMessage
 
@@ -37,19 +38,73 @@ def health():
     return {"status": "ok", "service": "eir-api"}
 
 
+def _crew_payload(member: CrewMember) -> dict:
+    return {
+        "code": member.code,
+        "full_name": member.full_name,
+        "age": member.age,
+        "allergies": member.allergies or [],
+        "health_status": member.health_status.value,
+        "avatar_data": member.avatar_data,
+    }
+
+
 @router.get("/crew")
 def list_crew(db: Session = Depends(get_db)):
     members = db.query(CrewMember).order_by(CrewMember.id).all()
-    return [
-        {
-            "code": m.code,
-            "full_name": m.full_name,
-            "age": m.age,
-            "allergies": m.allergies,
-            "health_status": m.health_status.value,
-        }
-        for m in members
-    ]
+    return [_crew_payload(member) for member in members]
+
+
+@router.get("/crew/{code}")
+def get_crew_member(
+    code: str,
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(get_current_user)],
+):
+    _assert_profile_access(user, code)
+    member = db.query(CrewMember).filter(CrewMember.code == code).first()
+    if not member:
+        raise HTTPException(404, "Profil equipage inconnu")
+    return _crew_payload(member)
+
+
+@router.patch("/crew/{code}/profile")
+def update_crew_profile(
+    code: str,
+    body: ProfileUpdate,
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(get_current_user)],
+):
+    _assert_profile_access(user, code)
+    member = db.query(CrewMember).filter(CrewMember.code == code).first()
+    if not member:
+        raise HTTPException(404, "Profil equipage inconnu")
+    cleaned: list[str] = []
+    for item in body.allergies:
+        value = " ".join(str(item).split())[:64]
+        if value and value not in cleaned:
+            cleaned.append(value)
+    member.allergies = cleaned
+    if body.full_name:
+        member.full_name = body.full_name.strip()[:128]
+        owner = db.query(User).filter(User.crew_member_code == code).first()
+        if owner:
+            owner.full_name = member.full_name
+    if body.avatar_data:
+        if not body.avatar_data.startswith("data:image/") or len(body.avatar_data) > 900_000:
+            raise HTTPException(400, "Photo trop lourde ou format invalide")
+        member.avatar_data = body.avatar_data
+    else:
+        member.avatar_data = None
+    db.commit()
+    journal.log_decision(
+        db,
+        action="profile_update",
+        summary=f"Profil {member.full_name} mis a jour",
+        crew_member_id=member.id,
+        payload={"allergies": member.allergies},
+    )
+    return _crew_payload(member)
 
 
 @router.get("/drugs")
@@ -241,6 +296,16 @@ def force_stock_zero(
         summary=f"Demo: stock {drug.name} force a zero",
         payload={"drug_code": drug_code},
     )
+    return {"ok": True, "stock_remaining": 0}
+
+
+@router.post("/demo/restock")
+def restock_demo(
+    db: Annotated[Session, Depends(get_db)],
+    _admin: Annotated[User, Depends(require_admin)],
+):
+    demo_data.restock_drugs(db)
+    journal.log_decision(db, action="demo_restock", summary="Stocks medicaments restaures")
     return {"ok": True}
 
 
@@ -250,8 +315,51 @@ def reset_demo(
     _admin: Annotated[User, Depends(require_admin)],
 ):
     demo_data.reset_demo(db)
-    journal.log_decision(db, action="demo_reset", summary="Jeu de donnees demo reinitialise")
+    journal.log_decision(db, action="demo_reset", summary="Mission reinitialisee: sante, stocks et cultures")
     return {"ok": True}
+
+
+@router.get("/plants")
+def list_plants(db: Session = Depends(get_db)):
+    return [plants.serialize(row) for row in plants.list_plants(db)]
+
+
+@router.post("/plants/{plant_code}/irrigate")
+def irrigate_plant(
+    plant_code: str,
+    db: Annotated[Session, Depends(get_db)],
+    _admin: Annotated[User, Depends(require_admin)],
+):
+    plant = plants.irrigate(db, plant_code)
+    if not plant:
+        raise HTTPException(404, "Culture inconnue")
+    return plants.serialize(plant)
+
+
+@router.post("/plants/{plant_code}/boost")
+def boost_plant(
+    plant_code: str,
+    db: Annotated[Session, Depends(get_db)],
+    _admin: Annotated[User, Depends(require_admin)],
+):
+    plant = plants.boost_light(db, plant_code)
+    if not plant:
+        raise HTTPException(404, "Culture inconnue")
+    return plants.serialize(plant)
+
+
+@router.post("/plants/{plant_code}/harvest")
+def harvest_plant(
+    plant_code: str,
+    db: Annotated[Session, Depends(get_db)],
+    _user: Annotated[User, Depends(get_current_user)],
+):
+    plant, error = plants.harvest(db, plant_code)
+    if plant is None:
+        raise HTTPException(404, "Culture inconnue")
+    if error:
+        raise HTTPException(400, error)
+    return plants.serialize(plant)
 
 
 @router.get("/journal", response_model=list[DecisionLogEntry])

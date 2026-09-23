@@ -2,21 +2,24 @@ import {
   Activity,
   HeartPulse,
   LayoutDashboard,
+  Leaf,
   LogOut,
   Orbit,
   Radio,
 } from "lucide-react";
-import { NavLink, Outlet } from "react-router-dom";
+import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 
 const navItems = [
   { to: "/dashboard", label: "Mission", icon: LayoutDashboard },
   { to: "/consultation", label: "Medichat", icon: HeartPulse },
+  { to: "/cultures", label: "Cultures", icon: Leaf },
   { to: "/journal", label: "Journal", icon: Radio },
 ];
 
 export default function AppShell() {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
 
   return (
     <div className="mission-shell">
@@ -48,21 +51,25 @@ export default function AppShell() {
             <strong>Poste EIR-07</strong>
           </div>
           <div className="topbar-status">
-            <span className="signal">
+            <span className="signal latency">
               <i />
-              Systeme nominal
+              Lien Terre latent
             </span>
-            <div className="avatar">{user?.full_name.slice(0, 1)}</div>
-            <div className="identity">
-              <strong>{user?.full_name}</strong>
-              <span>{user?.role === "admin" ? "Commandant medical" : "Membre equipage"}</span>
-            </div>
+            <button className="profile-launch" type="button" onClick={() => navigate("/profil")}>
+              <div className="avatar">
+                {user?.avatar_data ? <img src={user.avatar_data} alt="" /> : user?.full_name.slice(0, 1)}
+              </div>
+              <div className="identity">
+                <strong>{user?.full_name}</strong>
+                <span>{user?.role === "admin" ? "Commandant medical" : "Membre equipage"}</span>
+              </div>
+            </button>
           </div>
         </header>
 
         <div className="medical-notice">
           <Activity size={16} />
-          Prototype d'aide a la decision. Toute urgence reste sous autorite du medecin de bord.
+          Lien Terre lent et instable. EIR decide a bord sans attendre; un message sol part en file.
         </div>
 
         <main className="page-content">

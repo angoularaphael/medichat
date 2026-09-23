@@ -42,6 +42,7 @@ class CrewMember(Base):
     )
     severity_score: Mapped[int] = mapped_column(Integer, default=0)
     triage_priority: Mapped[int] = mapped_column(Integer, default=99)
+    avatar_data: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class User(Base):
@@ -160,3 +161,19 @@ class SecurityAlert(Base):
     payload: Mapped[dict] = mapped_column(FlexibleJSON, default=dict)
     acknowledged: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class PlantCulture(Base):
+    __tablename__ = "plant_cultures"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    code: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    name: Mapped[str] = mapped_column(String(128))
+    species: Mapped[str] = mapped_column(String(128))
+    indication: Mapped[str] = mapped_column(String(128))
+    replaces_drug_class: Mapped[str] = mapped_column(String(64))
+    biomass_percent: Mapped[float] = mapped_column(Float, default=50.0)
+    growth_rate: Mapped[float] = mapped_column(Float, default=4.0)
+    status: Mapped[str] = mapped_column(String(32), default="growing")
+    notes: Mapped[str] = mapped_column(Text, default="")
+    description: Mapped[str] = mapped_column(Text, default="")

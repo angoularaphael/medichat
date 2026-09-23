@@ -2,15 +2,17 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import {
   AlertTriangle,
-  ArrowUpRight,
   Boxes,
-  Clock3,
   Gauge,
+  Leaf,
+  PackagePlus,
+  RotateCcw,
   ShieldAlert,
   Sparkles,
   Users,
 } from "lucide-react";
 import type { CSSProperties } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 
@@ -25,14 +27,15 @@ const reveal = {
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const autonomy = useQuery({ queryKey: ["autonomy"], queryFn: api.autonomy });
   const crew = useQuery({ queryKey: ["crew"], queryFn: api.crew });
   const triage = useQuery({ queryKey: ["triage"], queryFn: api.triage });
   const drugs = useQuery({ queryKey: ["drugs"], queryFn: api.drugs });
+  const plants = useQuery({ queryKey: ["plants"], queryFn: api.plants });
 
-  const refreshMission = () =>
-    queryClient.invalidateQueries({ predicate: (query) => query.queryKey[0] !== "journal" });
+  const refreshMission = () => queryClient.invalidateQueries();
 
   const runAction = async (action: () => Promise<unknown>) => {
     await action();
@@ -43,6 +46,7 @@ export default function DashboardPage() {
   const rationedDays = autonomy.data?.rationing_quarantine.global_days ?? 0;
   const criticalStocks = drugs.data?.filter((drug) => drug.is_critical).length ?? 0;
   const sick = autonomy.data?.on_demand.sick_count ?? 0;
+  const readyPlants = plants.data?.filter((plant) => plant.ready).length ?? 0;
 
   return (
     <div className="dashboard-page">
@@ -50,7 +54,7 @@ export default function DashboardPage() {
         <div>
           <span className="eyebrow">Vue mission / Temps réel</span>
           <h1>Centre de commande médical</h1>
-          <p>Surveillance de l'équipage et des ressources thérapeutiques.</p>
+          <p>Lien Terre possible mais lent et parfois coupe. EIR decide a bord avec les stocks et les cultures.</p>
         </div>
         <div className={`mission-state ${autonomy.data?.crisis_active ? "alert" : ""}`}>
           <span />
@@ -60,10 +64,30 @@ export default function DashboardPage() {
 
       <section className="metric-grid" aria-label="Indicateurs mission">
         {[
-          { label: "Autonomie médicale", value: `${days} j`, detail: "Au rythme actuel", icon: Gauge },
-          { label: "Équipage suivi", value: crew.data?.length ?? "--", detail: `${sick} sous surveillance`, icon: Users },
-          { label: "Références critiques", value: criticalStocks, detail: `${drugs.data?.length ?? 0} médicaments à bord`, icon: Boxes },
-          { label: "Gain rationnement", value: `+${Math.max(0, rationedDays - days).toFixed(1)} j`, detail: "Projection optimisée", icon: Clock3 },
+          {
+            label: "Autonomie médicale",
+            value: `${days} j`,
+            detail: "Jours restants si on continue au rythme actuel",
+            icon: Gauge,
+          },
+          {
+            label: "Équipage suivi",
+            value: crew.data?.length ?? "--",
+            detail: sick ? `${sick} malade(s) a bord` : "Personne n'est marque malade",
+            icon: Users,
+          },
+          {
+            label: "Stocks critiques",
+            value: criticalStocks,
+            detail: `${drugs.data?.length ?? 0} medicaments synthetiques a bord`,
+            icon: Boxes,
+          },
+          {
+            label: "Cultures pretes",
+            value: readyPlants,
+            detail: "Plantes assez matures pour remplacer un stock epuise",
+            icon: Leaf,
+          },
         ].map((metric, index) => (
           <motion.article
             className="metric-card glass-panel"
@@ -77,7 +101,6 @@ export default function DashboardPage() {
             <span>{metric.label}</span>
             <strong>{metric.value}</strong>
             <small>{metric.detail}</small>
-            <ArrowUpRight className="metric-arrow" size={18} />
           </motion.article>
         ))}
       </section>
@@ -97,6 +120,9 @@ export default function DashboardPage() {
             </div>
             <span className="live-badge">Calcul actif</span>
           </div>
+          <p className="panel-hint">
+            Compare deux facons de gerer les stocks: tout donner tout de suite, ou rationner pour durer plus longtemps.
+          </p>
           <div className="autonomy-visual">
             <div
               className="orbital-gauge"
@@ -110,12 +136,12 @@ export default function DashboardPage() {
             </div>
             <div className="projection-list">
               <div>
-                <span>Politique actuelle</span>
+                <span>Si on soigne sans limite</span>
                 <strong>{days} jours</strong>
                 <div className="progress-track"><i style={{ width: `${Math.min(100, days)}%` }} /></div>
               </div>
               <div>
-                <span>Rationnement contrôlé</span>
+                <span>Si on rationne et isole</span>
                 <strong>{rationedDays} jours</strong>
                 <div className="progress-track violet"><i style={{ width: `${Math.min(100, rationedDays)}%` }} /></div>
               </div>
@@ -151,17 +177,25 @@ export default function DashboardPage() {
           <div className="crew-list">
             {crew.data?.map((member, index) => {
               const triageEntry = triage.data?.find((entry) => entry.crew_member_code === member.code);
+              const canOpen = user?.role === "admin" || user?.crew_member_code === member.code;
               return (
-                <div className="crew-row" key={member.code}>
-                  <div className="crew-avatar">{member.full_name.charAt(0)}</div>
+                <button
+                  className="crew-row"
+                  type="button"
+                  key={member.code}
+                  onClick={() => canOpen && navigate(`/profil/${member.code}`)}
+                >
+                  <div className="crew-avatar">
+                    {member.avatar_data ? <img src={member.avatar_data} alt="" /> : member.full_name.charAt(0)}
+                  </div>
                   <div>
                     <strong>{member.full_name}</strong>
-                    <span>{member.age} ans / Profil {String(index + 1).padStart(2, "0")}</span>
+                    <span>{member.age} ans / {canOpen ? "Ouvrir le profil" : `Profil ${String(index + 1).padStart(2, "0")}`}</span>
                   </div>
                   <span className={`health-state ${member.health_status}`}>
                     {member.health_status === "healthy" ? "Stable" : `Priorité ${triageEntry?.triage_priority ?? "-"}`}
                   </span>
-                </div>
+                </button>
               );
             })}
           </div>
@@ -179,18 +213,51 @@ export default function DashboardPage() {
           <div>
             <span className="eyebrow">Commandement / Simulation</span>
             <h2>Protocoles de mission</h2>
-            <p>Actions réservées au commandant médical pour la démonstration.</p>
+            <p>Ces boutons servent a tester la demo. Ils changent la sante et les stocks, puis le tableau se met a jour.</p>
           </div>
-          <div className="crisis-actions">
-            <button type="button" onClick={() => runAction(api.triggerCrisis)}>
-              <ShieldAlert size={18} /> Déclencher crise 15 %
-            </button>
-            <button type="button" onClick={() => runAction(api.rationing)}>
-              <Sparkles size={18} /> Activer rationnement
-            </button>
-            <button className="danger-ghost" type="button" onClick={() => runAction(() => api.forceStockZero("paracetamol"))}>
-              <AlertTriangle size={18} /> Simuler rupture
-            </button>
+          <div className="protocol-grid">
+            <article>
+              <h3>Crise 15 %</h3>
+              <p>Simule une epidemie: 15 % de l'equipage tombe malade. Ici, 1 personne sur 5. Les stocks baissent plus vite.</p>
+              <button type="button" onClick={() => runAction(api.triggerCrisis)}>
+                <ShieldAlert size={18} /> Declencher
+              </button>
+            </article>
+            <article>
+              <h3>Rationnement</h3>
+              <p>On isole une partie des malades et on distille les doses. Objectif: faire durer les stocks plus longtemps.</p>
+              <button type="button" onClick={() => runAction(api.rationing)}>
+                <Sparkles size={18} /> Activer
+              </button>
+            </article>
+            <article>
+              <h3>Rupture de stock</h3>
+              <p>Met le paracetamol a 0. Medichat doit alors proposer un plan B (autre molecule ou protocole de bord).</p>
+              <button className="danger-ghost" type="button" onClick={() => runAction(() => api.forceStockZero("paracetamol"))}>
+                <AlertTriangle size={18} /> Simuler
+              </button>
+            </article>
+            <article>
+              <h3>Reapprovisionnement</h3>
+              <p>Remet uniquement les medicaments a leur niveau de depart, sans annuler une crise en cours.</p>
+              <button type="button" onClick={() => runAction(api.restock)}>
+                <PackagePlus size={18} /> Restaurer les stocks
+              </button>
+            </article>
+            <article>
+              <h3>Remettre a zero</h3>
+              <p>Efface tout: sante de l'equipage, crise, stocks et cultures. Pour recommencer la demo proprement.</p>
+              <button type="button" onClick={() => runAction(api.resetDemo)}>
+                <RotateCcw size={18} /> Reset mission
+              </button>
+            </article>
+            <article>
+              <h3>Serre de bord</h3>
+              <p>Controle des plantes qui remplacent les antibiotiques quand les flacons sont vides.</p>
+              <Link className="protocol-link" to="/cultures">
+                <Leaf size={18} /> Ouvrir les cultures
+              </Link>
+            </article>
           </div>
         </motion.section>
       )}

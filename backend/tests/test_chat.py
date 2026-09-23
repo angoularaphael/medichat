@@ -44,6 +44,7 @@ def test_unknown_symptom_returns_assessment_protocol(client, monkeypatch):
     assert evaluation["recommendation"] is None
     assert evaluation["non_drug_protocol"]
     assert "symptom_requires_assessment" in evaluation["rules_fired"]
+    assert "medecin de bord" not in response.json()["content"].lower()
 
 
 def test_respiratory_difficulty_escalates(client, monkeypatch):

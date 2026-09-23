@@ -41,6 +41,9 @@ export type AuthUser = {
   full_name: string;
   role: "admin" | "crew";
   crew_member_code: string;
+  allergies?: string[];
+  avatar_data?: string | null;
+  age?: number | null;
 };
 
 export type LoginResponse = {
@@ -55,6 +58,7 @@ export type CrewMember = {
   age: number;
   allergies: string[];
   health_status: string;
+  avatar_data?: string | null;
 };
 
 export type Drug = {
@@ -77,6 +81,25 @@ export type CareEvaluation = {
   urgency: string;
   rules_fired: string[];
   non_drug_protocol?: string | null;
+  plant_recommendation?: {
+    plant_code: string;
+    plant_name: string;
+    protocol: string;
+  } | null;
+};
+
+export type PlantCulture = {
+  code: string;
+  name: string;
+  species: string;
+  indication: string;
+  replaces_drug_class: string;
+  biomass_percent: number;
+  growth_rate: number;
+  status: string;
+  notes: string;
+  description: string;
+  ready: boolean;
 };
 
 export type ChatResponse = {
@@ -127,6 +150,12 @@ export const api = {
     ),
   me: () => request<AuthUser>("/api/auth/me"),
   crew: () => request<CrewMember[]>("/api/crew"),
+  crewMember: (code: string) => request<CrewMember>(`/api/crew/${code}`),
+  updateProfile: (code: string, body: { allergies: string[]; avatar_data?: string | null; full_name?: string }) =>
+    request<CrewMember>(`/api/crew/${code}/profile`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
   drugs: () => request<Drug[]>("/api/drugs"),
   chat: (crew_member_code: string, message: string, session_id = "default") =>
     request<ChatResponse>("/api/chat/message", {
@@ -144,7 +173,15 @@ export const api = {
   rationing: () => request<AutonomyCompare>("/api/crisis/rationing", { method: "POST" }),
   forceStockZero: (code: string) =>
     request("/api/demo/force-stock-zero/" + code, { method: "POST" }),
+  restock: () => request("/api/demo/restock", { method: "POST" }),
   resetDemo: () => request("/api/demo/reset", { method: "POST" }),
+  plants: () => request<PlantCulture[]>("/api/plants"),
+  irrigatePlant: (code: string) =>
+    request<PlantCulture>(`/api/plants/${code}/irrigate`, { method: "POST" }),
+  boostPlant: (code: string) =>
+    request<PlantCulture>(`/api/plants/${code}/boost`, { method: "POST" }),
+  harvestPlant: (code: string) =>
+    request<PlantCulture>(`/api/plants/${code}/harvest`, { method: "POST" }),
   journal: () => request<JournalEntry[]>("/api/journal"),
   securityAlerts: () => request<SecurityAlert[]>("/api/security/alerts"),
 };

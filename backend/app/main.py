@@ -7,6 +7,7 @@ from app.api.deps import get_current_user
 from app.api.routes.auth_router import router as auth_router
 from app.api.routes.main_router import router
 from app.config import settings
+from app.db.migrate import ensure_schema
 from app.db.session import Base, SessionLocal, engine
 from app.services import mqtt_service
 from app.seed import demo_data
@@ -32,6 +33,7 @@ def on_startup():
     import app.models.entities  # noqa: F401
 
     Base.metadata.create_all(bind=engine)
+    ensure_schema(engine)
     db = SessionLocal()
     try:
         demo_data.run_seed(db)
