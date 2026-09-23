@@ -63,10 +63,14 @@ def template_reply(evaluation: CareEvaluationResult, user_message: str = "") -> 
         )
     if evaluation.plant_recommendation:
         plant = evaluation.plant_recommendation
-        return (
-            f"{opener} Plus de flacon adapte, donc on bascule sur {plant.plant_name}. "
-            f"{plant.protocol}"
-        )
+        protocol = plant.protocol
+        if protocol.startswith("Les flacons sont en stock"):
+            lead = "Ton profil ecarte les flacons disponibles."
+        elif protocol.startswith("Stock medicamenteux epuise"):
+            lead = "Les flacons sont vides pour ce symptome."
+        else:
+            lead = "On bascule sur la serre."
+        return f"{opener} {lead} {protocol}"
     if evaluation.non_drug_protocol:
         return f"{opener} {evaluation.non_drug_protocol}"
     return f"{opener} Je reste avec toi: on surveille, tu me dis si ca bouge."

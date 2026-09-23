@@ -131,13 +131,26 @@ def _support_text(indication: str) -> str:
     return ""
 
 
-def _plant_fallback(db: Session, indication: str, excluded: list[ExcludedOption], rules: list[str]) -> CareEvaluationResult | None:
+def _plant_fallback(
+    db: Session,
+    indication: str,
+    excluded: list[ExcludedOption],
+    rules: list[str],
+    *,
+    profile_blocked: bool,
+) -> CareEvaluationResult | None:
     plant = plants.find_ready_plant(db, indication)
     if plant:
         rules.append(f"plant_relay_{plant.code}")
+        if profile_blocked:
+            intro = (
+                "Les flacons sont en stock mais ton profil les ecarte (allergies ou interactions). "
+                "Relais serre: "
+            )
+        else:
+            intro = "Stock medicamenteux epuise pour cette indication. Relais serre: "
         protocol = (
-            f"Les flacons ne suffisent plus. On bascule sur la serre: "
-            f"{plant.name} ({plant.species}). {plant.notes}"
+            f"{intro}{plant.name} ({plant.species}). {plant.notes}"
             f"{_support_text(indication)}"
         )
         return CareEvaluationResult(
@@ -157,10 +170,16 @@ def _plant_fallback(db: Session, indication: str, excluded: list[ExcludedOption]
     if not culture:
         return None
     rules.append(f"bacteria_relay_{culture.code}")
+    if profile_blocked:
+        intro = (
+            "Les flacons sont en stock mais ton profil les ecarte. "
+            "Pharmacie vivante: "
+        )
+    else:
+        intro = "Stock medicamenteux epuise. Pharmacie vivante: "
     protocol = (
-        f"Plus de plante prete non plus. Pharmacie vivante: "
-        f"{culture.nom_souche} ({culture.categorie}, {culture.quantite_boites} boites). {culture.notes}"
-        f"{_support_text(indication)}"
+        f"{intro}{culture.nom_souche} ({culture.categorie}, {culture.quantite_boites} boites). "
+        f"{culture.notes}{_support_text(indication)}"
     )
     return CareEvaluationResult(
         excluded_options=excluded,
@@ -349,9 +368,6 @@ def evaluate_care(
                     urgency="routine",
                     rules_fired=rules,
                 )
-            plant_result = _plant_fallback(db, indication, excluded, rules)
-            if plant_result:
-                return plant_result
             continue
 
         rules.append(f"recommend_{drug.code}")
@@ -368,7 +384,17 @@ def evaluate_care(
             rules_fired=rules,
         )
 
-    plant_result = _plant_fallback(db, indication, excluded, rules)
+    has_usable_stock = any(
+        drug.code not in excluded_codes and drug.stock_units > 0 for drug in candidates
+    )
+    profile_blocked = not has_usable_stock and any(drug.stock_units > 0 for drug in candidates)
+    plant_result = _plant_fallback(
+        db,
+        indication,
+        excluded,
+        rules,
+        profile_blocked=profile_blocked,
+    )
     if plant_result:
         return plant_result
 

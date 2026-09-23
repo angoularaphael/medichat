@@ -75,6 +75,29 @@ def test_profile_allergies_saved(client):
     assert "paracetamol" in stored["allergies"]
 
 
+def test_depleted_paracetamol_still_uses_other_analgesic(client):
+    client.post("/api/demo/reset")
+    client.post("/api/demo/force-stock-zero/paracetamol")
+    response = client.post(
+        "/api/care/evaluate",
+        json={"crew_member_code": "elsa", "symptoms": ["mal de dos"]},
+    )
+    data = response.json()
+    assert data["recommendation"]["drug_code"] == "ibuprofen"
+    assert data["plant_recommendation"] is None
+
+
+def test_raphael_back_pain_uses_paracetamol_with_stock(client):
+    client.post("/api/demo/reset")
+    response = client.post(
+        "/api/care/evaluate",
+        json={"crew_member_code": "raphael", "symptoms": ["mal de dos"]},
+    )
+    data = response.json()
+    assert data["recommendation"]["drug_code"] == "paracetamol"
+    assert data["plant_recommendation"] is None
+
+
 def test_paracetamol_allergy_falls_back_to_plant(client):
     client.post("/api/demo/reset")
     client.patch(

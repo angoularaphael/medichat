@@ -1,6 +1,8 @@
-import { Canvas, useFrame } from "@react-three/fiber";
+import { Canvas } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { ZoomIn, ZoomOut } from "lucide-react";
+import { RefObject, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import * as THREE from "three";
 
 const COLS = 80;
@@ -72,8 +74,7 @@ function buildSides(image: HTMLImageElement): THREE.BufferGeometry {
   return geometry;
 }
 
-function ReliefMesh({ src, spinning }: { src: string; spinning: boolean }) {
-  const group = useRef<THREE.Group>(null);
+function ReliefMesh({ src }: { src: string }) {
   const [texture, setTexture] = useState<THREE.Texture | null>(null);
   const [sides, setSides] = useState<THREE.BufferGeometry | null>(null);
 
@@ -105,11 +106,6 @@ function ReliefMesh({ src, spinning }: { src: string; spinning: boolean }) {
     };
   }, [src]);
 
-  useFrame((_, delta) => {
-    if (!group.current) return;
-    group.current.rotation.y += delta * (spinning ? 1.5 : 0.4);
-  });
-
   const faceMaterial = useMemo(() => {
     if (!texture) return null;
     return new THREE.MeshStandardMaterial({
@@ -135,7 +131,7 @@ function ReliefMesh({ src, spinning }: { src: string; spinning: boolean }) {
 
   if (!texture || !faceMaterial || !sides) return null;
   return (
-    <group ref={group} rotation={[0, 0.35, 0]}>
+    <group rotation={[0, 0.35, 0]}>
       <mesh position={[0, 0, THICK]} material={faceMaterial}>
         <planeGeometry args={[SIZE, SIZE]} />
       </mesh>
@@ -147,30 +143,64 @@ function ReliefMesh({ src, spinning }: { src: string; spinning: boolean }) {
   );
 }
 
+type PlantReliefProps = {
+  src: string;
+  name: string;
+  controlsRef: RefObject<OrbitControlsImpl | null>;
+};
+
+function Scene({ src, controlsRef }: { src: string; controlsRef: PlantReliefProps["controlsRef"] }) {
+  return (
+    <>
+      <color attach="background" args={["#050816"]} />
+      <ambientLight intensity={0.9} />
+      <pointLight position={[2.2, 2.4, 3]} intensity={20} color="#9be7ff" />
+      <pointLight position={[-2.4, -0.6, 1.6]} intensity={12} color="#7d5cff" />
+      <directionalLight position={[0.2, 1, 2.2]} intensity={1.2} />
+      <Suspense fallback={null}>
+        <ReliefMesh src={src} />
+      </Suspense>
+      <OrbitControls
+        ref={controlsRef}
+        enablePan={false}
+        enableRotate={false}
+        enableZoom
+        minDistance={1.15}
+        maxDistance={3.2}
+      />
+    </>
+  );
+}
+
 export default function PlantRelief({ src, name }: { src: string; name: string }) {
-  const [spinning, setSpinning] = useState(false);
-  const reduced =
-    typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const controlsRef = useRef<OrbitControlsImpl | null>(null);
+
+  function zoom(delta: number) {
+    const controls = controlsRef.current;
+    if (!controls) return;
+    const camera = controls.object;
+    camera.position.z = Math.min(3.2, Math.max(1.15, camera.position.z + delta));
+    controls.update();
+  }
 
   return (
     <div className="plant-portrait photo">
       <Canvas
         camera={{ position: [0, 0.06, 2.15], fov: 36 }}
         dpr={[1, 1.35]}
-        onPointerDown={() => setSpinning(true)}
         gl={{ antialias: true, alpha: true }}
         aria-label={name}
       >
-        <color attach="background" args={["#050816"]} />
-        <ambientLight intensity={0.9} />
-        <pointLight position={[2.2, 2.4, 3]} intensity={20} color="#9be7ff" />
-        <pointLight position={[-2.4, -0.6, 1.6]} intensity={12} color="#7d5cff" />
-        <directionalLight position={[0.2, 1, 2.2]} intensity={1.2} />
-        <Suspense fallback={null}>
-          <ReliefMesh src={src} spinning={spinning && !reduced} />
-        </Suspense>
-        <OrbitControls enablePan={false} enableZoom={false} autoRotate={false} />
+        <Scene src={src} controlsRef={controlsRef} />
       </Canvas>
+      <div className="plant-zoom-controls">
+        <button type="button" className="plant-zoom-btn" onClick={() => zoom(-0.22)} aria-label="Zoomer">
+          <ZoomIn size={18} />
+        </button>
+        <button type="button" className="plant-zoom-btn" onClick={() => zoom(0.22)} aria-label="Dezoomer">
+          <ZoomOut size={18} />
+        </button>
+      </div>
     </div>
   );
 }

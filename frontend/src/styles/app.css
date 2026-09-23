@@ -1279,6 +1279,7 @@ button:disabled {
 }
 
 .plant-portrait {
+  position: relative;
   display: grid;
   width: 100%;
   height: 200px;
@@ -1286,7 +1287,6 @@ button:disabled {
   overflow: hidden;
   border: 1px solid rgba(110, 231, 255, 0.12);
   border-radius: 18px;
-  cursor: grab;
   touch-action: none;
   background:
     radial-gradient(circle at 50% 80%, rgba(100, 245, 189, 0.12), transparent 55%),
@@ -1300,8 +1300,24 @@ button:disabled {
   height: 100% !important;
 }
 
-.plant-portrait:active {
-  cursor: grabbing;
+.plant-zoom-controls {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  display: grid;
+  gap: 8px;
+  z-index: 2;
+}
+
+.plant-zoom-btn {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border: 1px solid rgba(110, 231, 255, 0.35);
+  border-radius: 12px;
+  background: rgba(5, 8, 22, 0.82);
+  color: var(--cyan);
 }
 
 .plant-spinner {
