@@ -303,8 +303,10 @@ async def chat_message(
         conversation = conversations.create_conversation(db, user.username, body.crew_member_code)
 
     history = conversations.history_text(db, conversation.id)
-    combined = f"{history}\n{body.message}" if history else body.message
-    symptoms = ollama_client.extract_symptoms(combined)
+    symptoms = ollama_client.extract_symptoms_for_eval(history, body.message)
+    meta_followup = ollama_client.is_meta_question(body.message) and not ollama_client.clinical_symptoms(
+        body.message
+    )
     evaluation = rules_engine.evaluate_care(
         db,
         crew_member_code=body.crew_member_code,
@@ -314,6 +316,8 @@ async def chat_message(
         body.message,
         evaluation,
         history,
+        symptoms=symptoms,
+        meta_followup=meta_followup,
     )
 
     db.add(

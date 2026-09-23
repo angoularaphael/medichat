@@ -1,8 +1,16 @@
 from app.services import ollama_client
 
 
-async def _template_response(message, evaluation, history=""):
-    return ollama_client.template_reply(evaluation, message), "template"
+async def _template_response(message, evaluation, history="", symptoms=None, meta_followup=False):
+    return (
+        ollama_client.template_reply(
+            evaluation,
+            message,
+            symptoms=symptoms or [],
+            meta_followup=meta_followup,
+        ),
+        "template",
+    )
 
 
 def test_chat_always_returns_visible_recommendation(client, monkeypatch):

@@ -195,8 +195,26 @@ def restock_drugs(db: Session) -> None:
     db.commit()
 
 
+def reset_crew_profiles(db: Session) -> None:
+    defaults: dict[str, tuple[list[str], list]] = {
+        "elisa": (["ibuprofen", "AINS"], []),
+        "raphael": ([], [{"drug_code": "warfarin", "dose_mg": 5}]),
+        "elsa": ([], []),
+        "jovani": ([], []),
+        "carine": ([], []),
+    }
+    for code, (allergies, treatments) in defaults.items():
+        member = db.query(CrewMember).filter(CrewMember.code == code).first()
+        if not member:
+            continue
+        member.allergies = list(allergies)
+        member.current_treatments = list(treatments)
+        member.avatar_data = None
+
+
 def reset_demo(db: Session) -> None:
     crisis.reset_crew_health(db)
+    reset_crew_profiles(db)
     restock_drugs(db)
     plants.reset_plants(db)
     bacteria.reset_cultures(db)

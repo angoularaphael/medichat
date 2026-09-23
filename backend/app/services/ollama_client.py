@@ -19,7 +19,7 @@ SYMPTOM_PATTERNS = [
     (re.compile(r"mal de l[' ]espace|cin[eé]tose|mal des transports", re.I), "mal de l'espace"),
     (re.compile(r"congestion|nez bouch|sinus", re.I), "congestion"),
     (re.compile(r"toux|cough", re.I), "toux"),
-    (re.compile(r"mal au ventre|douleur abdominale|abdominal", re.I), "douleur abdominale"),
+    (re.compile(r"mal au ventre|douleur abdominale|abdominal", re.I), "mal de ventre"),
     (re.compile(r"vertige|[ée]tourdissement|dizzy", re.I), "vertige"),
     (
         re.compile(
@@ -33,6 +33,14 @@ SYMPTOM_PATTERNS = [
     (re.compile(r"j[' ]ai mal|mal (au|a la|à la|de)|douleur", re.I), "douleur"),
 ]
 
+CLINICAL_LABELS = {label for _, label in SYMPTOM_PATTERNS}
+
+META_QUESTION = re.compile(
+    r"qu['']est-ce|ce que j['']ai|tu peux me dire|explique|pourquoi|c'est quoi|"
+    r"tu penses|diagnostic|grave\s*\?|c'est grave",
+    re.I,
+)
+
 
 def extract_symptoms(text: str) -> list[str]:
     found: list[str] = []
@@ -44,52 +52,112 @@ def extract_symptoms(text: str) -> list[str]:
     return found
 
 
-def template_reply(evaluation: CareEvaluationResult, user_message: str = "") -> str:
-    felt = " ".join(user_message.split())
-    if felt:
-        opener = f"Ok, j'entends: {felt}."
-    else:
-        opener = "Ok, je te prends en charge."
+def clinical_symptoms(text: str) -> list[str]:
+    return [label for label in extract_symptoms(text) if label in CLINICAL_LABELS]
 
+
+def _symptoms_from_history(history: str) -> list[str]:
+    for line in reversed(history.splitlines()):
+        if not line.lower().startswith("user:"):
+            continue
+        text = line.split(":", 1)[1].strip()
+        clinical = clinical_symptoms(text)
+        if clinical:
+            return clinical
+    return []
+
+
+def is_meta_question(message: str) -> bool:
+    return bool(META_QUESTION.search(message))
+
+
+def extract_symptoms_for_eval(history: str, message: str) -> list[str]:
+    clinical = clinical_symptoms(message)
+    if clinical:
+        return clinical
+    if history:
+        from_history = _symptoms_from_history(history)
+        if from_history:
+            return from_history
+    if is_meta_question(message):
+        return ["douleur"]
+    raw = extract_symptoms(message)
+    return [item for item in raw if item in CLINICAL_LABELS] or raw
+
+
+def _symptom_label_fr(symptoms: list[str]) -> str:
+    if not symptoms:
+        return "ce que tu ressens"
+    primary = symptoms[0]
+    mapping = {
+        "mal de tete": "ton mal de tete",
+        "mal de dos": "ton mal de dos",
+        "mal au rein": "ton mal au rein",
+        "douleur": "ta douleur",
+        "fievre": "ta fievre",
+        "nausee": "tes nausees",
+        "diarrhee": "ta diarrhee",
+        "constipation": "ta constipation",
+        "infection": "cette infection",
+    }
+    return mapping.get(primary, primary)
+
+
+def template_reply(
+    evaluation: CareEvaluationResult,
+    user_message: str = "",
+    *,
+    symptoms: list[str] | None = None,
+    meta_followup: bool = False,
+) -> str:
+    topic = _symptom_label_fr(symptoms or [])
     if evaluation.escalate_to_physician:
-        detail = evaluation.non_drug_protocol or ""
-        return f"{opener} La c'est grave: on passe en urgence cabine. {detail}"
+        detail = evaluation.non_drug_protocol or "On passe en urgence cabine tout de suite."
+        return f"La c'est serieux. {detail}"
+
+    if meta_followup:
+        if evaluation.recommendation:
+            rec = evaluation.recommendation
+            return (
+                f"On reste sur le meme episode. Pour {topic}, "
+                f"je te conseille {rec.drug_name} ({rec.dose_mg:.0f} mg). "
+                f"{rec.rationale} Dis-moi si ca evolue."
+            )
+        if evaluation.plant_recommendation:
+            plant = evaluation.plant_recommendation
+            return f"On reste sur le meme episode. {plant.protocol}"
+        if evaluation.non_drug_protocol:
+            return f"On reste sur le meme episode. {evaluation.non_drug_protocol}"
+        return "Je te suis. Decris-moi encore ce que tu ressens ou ce qui a change."
 
     if evaluation.recommendation:
         rec = evaluation.recommendation
         return (
-            f"{opener} Avec ton dossier et le stock, je te propose {rec.drug_name} "
-            f"({rec.dose_mg:.0f} mg). {rec.rationale} Dis-moi si ca se calme."
+            f"Pour {topic}, prends {rec.drug_name} ({rec.dose_mg:.0f} mg). "
+            f"{rec.rationale} Dis-moi si ca va mieux."
         )
     if evaluation.plant_recommendation:
-        plant = evaluation.plant_recommendation
-        protocol = plant.protocol
-        if protocol.startswith("Les flacons sont en stock"):
-            lead = "Ton profil ecarte les flacons disponibles."
-        elif protocol.startswith("Stock medicamenteux epuise"):
-            lead = "Les flacons sont vides pour ce symptome."
-        else:
-            lead = "On bascule sur la serre."
-        return f"{opener} {lead} {protocol}"
+        return evaluation.plant_recommendation.protocol
     if evaluation.non_drug_protocol:
-        return f"{opener} {evaluation.non_drug_protocol}"
-    return f"{opener} Je reste avec toi: on surveille, tu me dis si ca bouge."
+        return evaluation.non_drug_protocol
+    return "Je reste avec toi. Surveille comment ca evolue et redis-moi si ca s'aggrave."
 
 
 async def reformulate_with_ollama(
     user_message: str,
     evaluation: CareEvaluationResult,
     history: str = "",
+    symptoms: list[str] | None = None,
+    meta_followup: bool = False,
 ) -> tuple[str, str]:
     system = (
-        "Tu es EIR Medichat, collegue de bord. Tu tutoies. "
-        "Tu restes dans le fil de conversation: tu tiens compte de l'historique. "
+        "Tu es EIR Medichat, collegue de bord. Tu tutoies avec des mots simples. "
+        "Ne recopies jamais le message du patient mot pour mot. Pas de formule du type j'entends. "
         "Tu reformules UNIQUEMENT la decision JSON. "
         "Ne prescris jamais un medicament absent du JSON. "
-        "Reponds vraiment au mal decrit, de facon humaine et concrete. "
+        "Reponds au mal ou a la question, en une ou deux phrases courtes. "
         "N'invente pas de latence terrestre, de coupure, ni d'isolement "
-        "sauf si le JSON dit urgence critique. "
-        "Francais court, vivant, sans emoji."
+        "sauf urgence critique dans le JSON. Francais clair, sans emoji."
     )
     history_block = f"\nHistorique du fil:\n{history}\n" if history else ""
     payload = {
@@ -113,8 +181,21 @@ async def reformulate_with_ollama(
             resp.raise_for_status()
             data = resp.json()
             content = str(data.get("message", {}).get("content") or "").strip()
-            if not content:
-                return template_reply(evaluation, user_message), "template"
+            if not content or "j'entends" in content.lower() or "j entends" in content.lower():
+                return (
+                    template_reply(
+                        evaluation,
+                        user_message,
+                        symptoms=symptoms,
+                        meta_followup=meta_followup,
+                    ),
+                    "template",
+                )
             return content, "ollama"
     except Exception:
-        return template_reply(evaluation, user_message), "template"
+        return template_reply(
+            evaluation,
+            user_message,
+            symptoms=symptoms,
+            meta_followup=meta_followup,
+        ), "template"

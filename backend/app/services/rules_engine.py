@@ -131,26 +131,39 @@ def _support_text(indication: str) -> str:
     return ""
 
 
+def _expanded_candidates(db: Session, candidates: list[Drug], indication: str) -> list[Drug]:
+    expanded: list[Drug] = []
+    seen: set[str] = set()
+    for drug in candidates:
+        if drug.code not in seen:
+            expanded.append(drug)
+            seen.add(drug.code)
+        for sub in substitution.find_substitutes(db, drug.id, indication):
+            if sub.code not in seen:
+                expanded.append(sub)
+                seen.add(sub.code)
+    return expanded
+
+
+def _indication_stock_depleted(db: Session, candidates: list[Drug], indication: str) -> bool:
+    pool = _expanded_candidates(db, candidates, indication)
+    if not pool:
+        return True
+    return all(drug.stock_units <= 0 for drug in pool)
+
+
 def _plant_fallback(
     db: Session,
     indication: str,
     excluded: list[ExcludedOption],
     rules: list[str],
-    *,
-    profile_blocked: bool,
 ) -> CareEvaluationResult | None:
     plant = plants.find_ready_plant(db, indication)
     if plant:
         rules.append(f"plant_relay_{plant.code}")
-        if profile_blocked:
-            intro = (
-                "Les flacons sont en stock mais ton profil les ecarte (allergies ou interactions). "
-                "Relais serre: "
-            )
-        else:
-            intro = "Stock medicamenteux epuise pour cette indication. Relais serre: "
         protocol = (
-            f"{intro}{plant.name} ({plant.species}). {plant.notes}"
+            f"Il n'y a plus de medicament en stock pour ca. "
+            f"Utilise {plant.name} dans la serre: {plant.notes}"
             f"{_support_text(indication)}"
         )
         return CareEvaluationResult(
@@ -170,15 +183,9 @@ def _plant_fallback(
     if not culture:
         return None
     rules.append(f"bacteria_relay_{culture.code}")
-    if profile_blocked:
-        intro = (
-            "Les flacons sont en stock mais ton profil les ecarte. "
-            "Pharmacie vivante: "
-        )
-    else:
-        intro = "Stock medicamenteux epuise. Pharmacie vivante: "
     protocol = (
-        f"{intro}{culture.nom_souche} ({culture.categorie}, {culture.quantite_boites} boites). "
+        f"Il n'y a plus de medicament en stock. "
+        f"Pharmacie vivante: {culture.nom_souche} ({culture.quantite_boites} boites). "
         f"{culture.notes}{_support_text(indication)}"
     )
     return CareEvaluationResult(
@@ -353,7 +360,11 @@ def evaluate_care(
                 excluded_codes.add(drug.code)
             subs = substitution.find_substitutes(db, drug.id, indication)
             for sub in subs:
-                if sub.code in excluded_codes or _has_allergy(member, sub):
+                if sub.code in excluded_codes or sub.stock_units <= 0:
+                    continue
+                if _has_allergy(member, sub):
+                    continue
+                if _interaction_blocks(db, member, sub):
                     continue
                 rules.append(f"substitution_{sub.code}")
                 return CareEvaluationResult(
@@ -362,7 +373,7 @@ def evaluate_care(
                         drug_code=sub.code,
                         drug_name=sub.name,
                         dose_mg=min(dose, sub.dose_max_mg),
-                        rationale=f"Substitution de {drug.name} (stock ou exclusion).",
+                        rationale=f"On en a encore en stock (remplace {drug.name}).{_support_text(indication)}",
                     ),
                     escalate_to_physician=False,
                     urgency="routine",
@@ -377,33 +388,34 @@ def evaluate_care(
                 drug_code=drug.code,
                 drug_name=drug.name,
                 dose_mg=dose,
-                        rationale=f"Ca correspond a ce que tu decris, et on a le stock.{_support_text(indication)}",
+                        rationale=f"On en a encore en stock.{_support_text(indication)}",
             ),
             escalate_to_physician=False,
             urgency="routine",
             rules_fired=rules,
         )
 
-    has_usable_stock = any(
-        drug.code not in excluded_codes and drug.stock_units > 0 for drug in candidates
-    )
-    profile_blocked = not has_usable_stock and any(drug.stock_units > 0 for drug in candidates)
-    plant_result = _plant_fallback(
-        db,
-        indication,
-        excluded,
-        rules,
-        profile_blocked=profile_blocked,
-    )
-    if plant_result:
-        return plant_result
+    stock_depleted = _indication_stock_depleted(db, candidates, indication)
+    if stock_depleted:
+        plant_result = _plant_fallback(db, indication, excluded, rules)
+        if plant_result:
+            return plant_result
 
     rules.append("no_option")
+    still_on_shelf = any(drug.stock_units > 0 for drug in _expanded_candidates(db, candidates, indication))
+    if still_on_shelf:
+        protocol = (
+            "Il reste des medicaments en stock pour ce symptome, "
+            "mais ton profil (allergies ou traitement) ne permet pas de t'en proposer un. "
+            "Surveille tes signes et previens le poste medical."
+        )
+    else:
+        protocol = LAST_RESORT_WATCH
     return CareEvaluationResult(
         excluded_options=excluded,
         recommendation=None,
         escalate_to_physician=False,
         urgency="routine",
         rules_fired=rules,
-        non_drug_protocol=LAST_RESORT_WATCH,
+        non_drug_protocol=protocol,
     )

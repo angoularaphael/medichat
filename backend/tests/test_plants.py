@@ -98,7 +98,7 @@ def test_raphael_back_pain_uses_paracetamol_with_stock(client):
     assert data["plant_recommendation"] is None
 
 
-def test_paracetamol_allergy_falls_back_to_plant(client):
+def test_paracetamol_allergy_does_not_use_plant_while_stock_remains(client):
     client.post("/api/demo/reset")
     client.patch(
         "/api/crew/elisa/profile",
@@ -111,6 +111,20 @@ def test_paracetamol_allergy_falls_back_to_plant(client):
     data = response.json()
     excluded = [item["drug_code"] for item in data["excluded_options"]]
     assert "paracetamol" in excluded
+    assert data["recommendation"] is None
+    assert data["plant_recommendation"] is None
+    assert "stock" in data["non_drug_protocol"].lower()
+
+
+def test_plant_only_when_analgesic_stock_is_empty(client):
+    client.post("/api/demo/reset")
+    for code in ("paracetamol", "ibuprofen", "aspirin"):
+        client.post(f"/api/demo/force-stock-zero/{code}")
+    response = client.post(
+        "/api/care/evaluate",
+        json={"crew_member_code": "elsa", "symptoms": ["mal de tete"]},
+    )
+    data = response.json()
     assert data["recommendation"] is None
     assert data["plant_recommendation"]["plant_code"] == "salix"
 
