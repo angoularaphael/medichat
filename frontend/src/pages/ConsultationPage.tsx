@@ -13,11 +13,14 @@ import {
   Sparkles,
   Stethoscope,
   UserRound,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { api, CareEvaluation } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import PlantPortrait from "../components/PlantPortrait";
+import { primeSpeech, setVoiceEnabled, speak, stopSpeaking, voiceEnabled, welcomeText } from "../speech/speak";
 
 type ChatLine = {
   id: string;
@@ -34,6 +37,13 @@ const suggestions = [
 ];
 const CONV_KEY = "eir_conversation_id";
 
+function patientName(
+  members: { code: string; full_name: string }[] | undefined,
+  code: string,
+): string | null {
+  return members?.find((member) => member.code === code)?.full_name ?? null;
+}
+
 export default function ConsultationPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -48,6 +58,9 @@ export default function ConsultationPage() {
   const [plantHarvested, setPlantHarvested] = useState(false);
   const threadEnd = useRef<HTMLDivElement>(null);
   const bootstrapped = useRef(false);
+  const welcomed = useRef<string | null>(null);
+  const [voiceOn, setVoiceOn] = useState(() => voiceEnabled());
+  const [speaking, setSpeaking] = useState(false);
 
   const conversationsQuery = useQuery({
     queryKey: ["conversations"],
@@ -63,6 +76,22 @@ export default function ConsultationPage() {
   useEffect(() => {
     threadEnd.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  useEffect(() => () => stopSpeaking(), []);
+
+  const spokenWelcome = welcomeText(patientName(crew.data, selectedCrew));
+
+  useEffect(() => {
+    if (!voiceOn || !conversationId || !historyQuery.isSuccess || !historyQuery.data) return;
+    if (!patientName(crew.data, selectedCrew)) return;
+    if (historyQuery.data.length > 0) return;
+    if (welcomed.current === conversationId) return;
+    welcomed.current = conversationId;
+    speak(spokenWelcome, {
+      onStart: () => setSpeaking(true),
+      onEnd: () => setSpeaking(false),
+    });
+  }, [voiceOn, conversationId, historyQuery.isSuccess, historyQuery.data, spokenWelcome]);
 
   useEffect(() => {
     if (!conversationsQuery.data || bootstrapped.current) return;
@@ -117,6 +146,10 @@ export default function ConsultationPage() {
       setEvaluation(response.evaluation);
       setConfirmedCodes([]);
       setPlantHarvested(false);
+      speak(response.content, {
+        onStart: () => setSpeaking(true),
+        onEnd: () => setSpeaking(false),
+      });
       await queryClient.invalidateQueries({ queryKey: ["journal"] });
       await queryClient.invalidateQueries({ queryKey: ["conversations"] });
     },
@@ -155,13 +188,48 @@ export default function ConsultationPage() {
 
   async function startNewChat() {
     const row = await api.createConversation(selectedCrew);
+    welcomed.current = row.id;
     setConversationId(row.id);
     localStorage.setItem(CONV_KEY, row.id);
     setMessages([]);
     setEvaluation(null);
     setConfirmedCodes([]);
     setPlantHarvested(false);
+    primeSpeech();
+    speak(spokenWelcome, {
+      onStart: () => setSpeaking(true),
+      onEnd: () => setSpeaking(false),
+    });
     await queryClient.invalidateQueries({ queryKey: ["conversations"] });
+  }
+
+  function toggleVoice() {
+    const next = !voiceOn;
+    setVoiceEnabled(next);
+    setVoiceOn(next);
+    setSpeaking(false);
+    if (next) {
+      primeSpeech();
+      if (messages.length === 0) {
+        welcomed.current = conversationId;
+        speak(spokenWelcome, {
+          onStart: () => setSpeaking(true),
+          onEnd: () => setSpeaking(false),
+        });
+      }
+    }
+  }
+
+  function listen(text: string) {
+    if (!voiceOn) {
+      setVoiceEnabled(true);
+      setVoiceOn(true);
+    }
+    primeSpeech();
+    speak(text, {
+      onStart: () => setSpeaking(true),
+      onEnd: () => setSpeaking(false),
+    });
   }
 
   async function closeChat() {
@@ -175,6 +243,7 @@ export default function ConsultationPage() {
     event?.preventDefault();
     const text = (suggested ?? message).trim();
     if (!text || chat.isPending) return;
+    primeSpeech();
     setMessages((current) => [
       ...current,
       { id: crypto.randomUUID(), role: "user", content: text },
@@ -205,6 +274,14 @@ export default function ConsultationPage() {
           <div className="chat-toolbar">
             <strong>{currentTitle}</strong>
             <div>
+              <button
+                type="button"
+                aria-pressed={voiceOn}
+                onClick={toggleVoice}
+              >
+                {voiceOn ? <Volume2 size={16} /> : <VolumeX size={16} />}
+                {voiceOn ? "Voix active" : "Voix coupee"}
+              </button>
               <button type="button" onClick={startNewChat}>
                 <MessageSquarePlus size={16} /> Nouveau chat
               </button>
@@ -246,9 +323,12 @@ export default function ConsultationPage() {
             {messages.length === 0 && (
               <motion.div className="chat-welcome" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
                 <div className="assistant-orb"><HeartPulse size={28} /></div>
-                <span>Système EIR prêt</span>
+                <span>{speaking ? "EIR parle" : "Systeme EIR pret"}</span>
                 <h2>Comment vous sentez-vous ?</h2>
-                <p>Decrivez votre ressenti. EIR agit tout de suite; l'avis sol, s'il arrive, vient en retard.</p>
+                <p>{spokenWelcome}</p>
+                <button type="button" className="listen-btn" onClick={() => listen(spokenWelcome)}>
+                  <Volume2 size={16} /> Ecouter le message
+                </button>
                 <div className="suggestion-grid">
                   {suggestions.map((suggestion) => (
                     <button type="button" key={suggestion} onClick={() => submit(undefined, suggestion)}>
@@ -271,6 +351,11 @@ export default function ConsultationPage() {
                   <div>
                     <span>{line.role === "assistant" ? "EIR Medichat" : selectedMember?.full_name}</span>
                     <p>{line.content}</p>
+                    {line.role === "assistant" && (
+                      <button type="button" className="listen-btn" onClick={() => listen(line.content)}>
+                        <Volume2 size={16} /> Ecouter
+                      </button>
+                    )}
                     {line.mode && <small>{line.mode === "ollama" ? "Reformulation IA locale" : "Réponse sécurisée hors ligne"}</small>}
                   </div>
                 </motion.div>

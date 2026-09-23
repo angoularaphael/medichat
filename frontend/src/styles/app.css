@@ -1722,7 +1722,27 @@ button:disabled {
   max-width: 480px;
   margin: auto;
   color: var(--muted);
-  font-size: 13px;
+  font-size: 14px;
+}
+
+.listen-btn {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(8, 10, 24, 0.55);
+  color: #d5dced;
+  font-size: 14px;
+}
+
+.chat-toolbar button[aria-pressed="true"] {
+  border-color: rgba(110, 231, 255, 0.45);
+  color: var(--cyan);
 }
 
 .suggestion-grid {
@@ -2726,7 +2746,7 @@ button:disabled {
   }
 
   .chat-toolbar div {
-    grid-template-columns: auto auto;
+    grid-template-columns: repeat(3, auto);
   }
 
   .chat-toolbar button {

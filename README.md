@@ -17,6 +17,8 @@ decision, mais il ne prescrit jamais seul.
 
 - Chat clinique multi-symptomes : segmentation du message, negations, sujet
   concerne et extraction locale completee par Ollama si disponible.
+- Lecture a voix haute des reponses, et message de bienvenue parle au debut
+  de chaque nouvelle discussion. Le bouton Voix coupe ou relance la lecture.
 - Reponse distincte pour chaque symptome, avec options ecartees et raisons.
 - Profils equipage, allergies, traitements, authentification JWT et roles.
 - Identification faciale locale optionnelle et conversations persistantes.
