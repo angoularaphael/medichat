@@ -1,6 +1,7 @@
 import json
 import logging
 import threading
+from pathlib import Path
 from urllib.parse import urlparse
 
 import paho.mqtt.client as mqtt
@@ -11,6 +12,7 @@ from app.db.session import SessionLocal
 from app.models.entities import SecurityAlert
 
 logger = logging.getLogger("eir.mqtt")
+OUTBOX = Path(__file__).resolve().parents[2] / "data" / "offline_outbox.jsonl"
 
 _client: mqtt.Client | None = None
 _lock = threading.Lock()
@@ -62,17 +64,31 @@ def is_connected() -> bool:
     return _client is not None and _client.is_connected()
 
 
+def _enqueue(topic: str, payload: dict) -> None:
+    OUTBOX.parent.mkdir(parents=True, exist_ok=True)
+    with OUTBOX.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps({"topic": topic, "payload": payload}) + "\n")
+
+
+def pending_outbox() -> int:
+    if not OUTBOX.exists():
+        return 0
+    return sum(1 for line in OUTBOX.read_text(encoding="utf-8").splitlines() if line.strip())
+
+
 def publish(topic: str, payload: dict) -> bool:
     global _client
     if _client is None:
         start_mqtt_background()
-    if _client is None:
+    if _client is None or not is_connected():
+        _enqueue(topic, payload)
         return False
     try:
         _client.publish(topic, json.dumps(payload), qos=1)
         return True
     except Exception as exc:
         logger.warning("MQTT publish failed: %s", exc)
+        _enqueue(topic, payload)
         return False
 
 

@@ -1,0 +1,23 @@
+# Regles de laboratoire Yggdrasil.
+# Elles detectent uniquement le marqueur de demonstration, pas un malware reel.
+
+alert http any any -> any any (
+  msg:"Yggdrasil LAB marqueur exfiltration";
+  flow:to_server,established;
+  http.request_header;
+  content:"X-Yggdrasil-Lab";
+  content:"exfil-demo";
+  distance:0;
+  classtype:policy-violation;
+  sid:2080001;
+  rev:1;
+)
+
+alert tcp any any -> any any (
+  msg:"Yggdrasil LAB charge utile fictive";
+  flow:to_server,established;
+  content:"LAB_DUMMY_NOT_REAL_DATA";
+  classtype:policy-violation;
+  sid:2080002;
+  rev:1;
+)

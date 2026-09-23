@@ -277,6 +277,19 @@ export const api = {
   forceStockZero: (code: string) =>
     request("/api/demo/force-stock-zero/" + code, { method: "POST" }),
   forceAllStockZero: () => request("/api/demo/force-all-stock-zero", { method: "POST" }),
+  gastroEstimate: () =>
+    request<{
+      scenario: string;
+      conclusion: string;
+      rows: {
+        drug_code: string;
+        label: string;
+        stock_units: number;
+        need_6_months: number;
+        shortage_units: number;
+        days_covered_at_peak: number;
+      }[];
+    }>("/api/clinical/gastro-estimate"),
   systemStatus: () =>
     request<{
       api: boolean;

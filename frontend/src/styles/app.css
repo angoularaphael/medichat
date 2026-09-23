@@ -2101,6 +2101,21 @@ button:disabled {
   font-size: 12px;
 }
 
+.gastro-panel {
+  margin: 0 0 18px;
+  padding: 16px;
+}
+
+.gastro-panel h2 {
+  margin: 6px 0;
+  font-size: clamp(18px, 2vw, 24px);
+}
+
+.gastro-panel p {
+  color: var(--muted);
+  font-size: 14px;
+}
+
 .resilience-strip {
   display: flex;
   flex-wrap: wrap;

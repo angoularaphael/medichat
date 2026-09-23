@@ -76,6 +76,7 @@ def system_status(db: Annotated[Session, Depends(get_db)]):
         "mqtt": mqtt_service.is_connected(),
         "ollama": ollama_ok,
         "decision_mode": "rules+ollama" if ollama_ok else "rules-offline",
+        "offline_outbox": mqtt_service.pending_outbox(),
         "linked_project": {
             "name": "MIMIR",
             "pillar": "DeepTech",
@@ -466,6 +467,13 @@ def activate_rationing(
         crisis_active=data["crisis_active"],
         rationing_active=data["rationing_active"],
     )
+
+
+@router.get("/clinical/gastro-estimate")
+def gastro_estimate(_user: Annotated[User, Depends(get_current_user)]):
+    from app.services.gastro_estimate import gastro_six_month_estimate
+
+    return gastro_six_month_estimate()
 
 
 @router.get("/clinical/isolation-guide")

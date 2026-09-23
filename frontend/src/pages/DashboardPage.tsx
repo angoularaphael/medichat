@@ -35,6 +35,7 @@ export default function DashboardPage() {
   const drugs = useQuery({ queryKey: ["drugs"], queryFn: api.drugs });
   const plants = useQuery({ queryKey: ["plants"], queryFn: api.plants });
   const status = useQuery({ queryKey: ["system-status"], queryFn: api.systemStatus, refetchInterval: 15000 });
+  const gastro = useQuery({ queryKey: ["gastro-estimate"], queryFn: api.gastroEstimate });
 
   const refreshMission = () => queryClient.invalidateQueries();
 
@@ -77,6 +78,25 @@ export default function DashboardPage() {
           {autonomy.data?.crisis_active ? "Protocole de crise actif" : "Mission nominale"}
         </div>
       </div>
+
+      {gastro.data && (
+        <section className="glass-panel gastro-panel">
+          <span className="eyebrow">Annexe logistique</span>
+          <h2>{gastro.data.scenario}</h2>
+          <p>{gastro.data.conclusion}</p>
+          <ul className="finding-list">
+            {gastro.data.rows.map((row) => (
+              <li key={row.drug_code}>
+                <strong>{row.label}</strong>
+                <span>
+                  Stock {row.stock_units}, besoin 6 mois {row.need_6_months}, manque {row.shortage_units}.
+                  Couverture au pic: {row.days_covered_at_peak} jours.
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <section className="metric-grid" aria-label="Indicateurs mission">
         {[

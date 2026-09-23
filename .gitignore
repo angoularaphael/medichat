@@ -18,5 +18,6 @@ frontend/dist/
 backend/.coverage
 htmlcov/
 *.log
+backend/data/
 .vscode/
 .idea/
