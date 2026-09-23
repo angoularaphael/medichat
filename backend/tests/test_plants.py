@@ -132,11 +132,27 @@ def test_empty_smecta_falls_back_to_rice(client):
     assert data["plant_recommendation"]["plant_code"] == "oryza"
 
 
-def test_plants_include_probiotic(client):
+def test_plants_exclude_probiotic_vat(client):
     plants = {item["code"]: item for item in client.get("/api/plants").json()}
-    assert "lactobacillus" in plants
-    assert plants["lactobacillus"]["replaces_drug_class"] == "probiotic"
-    assert plants["lactobacillus"]["ready"] is True
+    assert "lactobacillus" not in plants
+    assert "oryza" in plants
+    assert "zingiber" in plants
+
+
+def test_bacteria_living_pharmacy(client):
+    rows = {item["code"]: item for item in client.get("/api/bacteria").json()}
+    assert len(rows) == 6
+    assert rows["lactobacillus_acidophilus"]["categorie"] == "Probiotique"
+    assert rows["lactobacillus_acidophilus"]["ready"] is True
+    assert rows["penicillium_chrysogenum"]["categorie"] == "Antibiotique"
+    assert rows["staphylococcus_aureus"]["treatable"] is False
+    assert rows["staphylococcus_aureus"]["ready"] is False
+
+
+def test_staphylococcus_cannot_be_harvested(client):
+    response = client.post("/api/bacteria/staphylococcus_aureus/harvest")
+    assert response.status_code == 400
+    assert "traitement" in response.json()["detail"].lower()
 
 
 def test_empty_rice_falls_back_to_probiotic(client):
@@ -152,7 +168,27 @@ def test_empty_rice_falls_back_to_probiotic(client):
     )
     data = response.json()
     assert data["recommendation"] is None
-    assert data["plant_recommendation"]["plant_code"] == "lactobacillus"
+    assert data["plant_recommendation"]["plant_code"] == "lactobacillus_acidophilus"
+
+
+def test_empty_antibiotics_and_plants_use_penicillium(client):
+    client.post("/api/demo/reset")
+    client.post("/api/demo/force-stock-zero/amoxicillin")
+    client.post("/api/demo/force-stock-zero/azithromycin")
+    client.post("/api/plants/thymus/harvest")
+    client.post("/api/plants/thymus/harvest")
+    client.post("/api/plants/allium/harvest")
+    client.post("/api/plants/artemisia/harvest")
+    response = client.post(
+        "/api/care/evaluate",
+        json={"crew_member_code": "elsa", "symptoms": ["infection"]},
+    )
+    data = response.json()
+    assert data["recommendation"] is None
+    assert data["plant_recommendation"]["plant_code"] in {
+        "penicillium_chrysogenum",
+        "streptomyces_griseus",
+    }
 
 
 def test_para_allergy_uses_other_drug_if_available(client):

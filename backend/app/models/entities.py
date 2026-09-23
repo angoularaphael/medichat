@@ -177,3 +177,19 @@ class PlantCulture(Base):
     status: Mapped[str] = mapped_column(String(32), default="growing")
     notes: Mapped[str] = mapped_column(Text, default="")
     description: Mapped[str] = mapped_column(Text, default="")
+
+
+class BiologicalCulture(Base):
+    __tablename__ = "stock_cultures_biologiques"
+
+    id_culture: Mapped[int] = mapped_column(Integer, primary_key=True)
+    code: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    nom_souche: Mapped[str] = mapped_column(String(128))
+    categorie: Mapped[str] = mapped_column(String(64))
+    temperature_celsius: Mapped[float] = mapped_column(Float)
+    quantite_boites: Mapped[int] = mapped_column(Integer, default=0)
+    statut_viabilite: Mapped[str] = mapped_column(String(32), default="Actif")
+    indication: Mapped[str] = mapped_column(String(64), default="")
+    treatable: Mapped[bool] = mapped_column(Boolean, default=False)
+    notes: Mapped[str] = mapped_column(Text, default="")
+    description: Mapped[str] = mapped_column(Text, default="")

@@ -21,7 +21,7 @@ from app.schemas.api import (
     SecurityAlertOut,
     TriageEntry,
 )
-from app.services import autonomy, crisis, journal, mqtt_service, ollama_client, plants, rules_engine, triage
+from app.services import autonomy, bacteria, crisis, journal, mqtt_service, ollama_client, plants, rules_engine, triage
 from app.seed import demo_data
 from app.models.entities import ChatMessage
 
@@ -356,10 +356,48 @@ def harvest_plant(
 ):
     plant, error = plants.harvest(db, plant_code)
     if plant is None:
-        raise HTTPException(404, "Culture inconnue")
+        culture, error = bacteria.harvest(db, plant_code)
+        if culture is None:
+            raise HTTPException(404, "Culture inconnue")
+        if error:
+            raise HTTPException(400, error)
+        return bacteria.serialize(culture)
     if error:
         raise HTTPException(400, error)
     return plants.serialize(plant)
+
+
+@router.get("/bacteria")
+def list_bacteria(db: Session = Depends(get_db)):
+    return [bacteria.serialize(row) for row in bacteria.list_cultures(db)]
+
+
+@router.post("/bacteria/{culture_code}/incubate")
+def incubate_bacteria(
+    culture_code: str,
+    db: Annotated[Session, Depends(get_db)],
+    _admin: Annotated[User, Depends(require_admin)],
+):
+    row = bacteria.incubate(db, culture_code)
+    if not row:
+        raise HTTPException(404, "Culture inconnue")
+    if row.statut_viabilite == "Contamine":
+        raise HTTPException(400, "Souche contaminee: incubation interdite.")
+    return bacteria.serialize(row)
+
+
+@router.post("/bacteria/{culture_code}/harvest")
+def harvest_bacteria(
+    culture_code: str,
+    db: Annotated[Session, Depends(get_db)],
+    _user: Annotated[User, Depends(get_current_user)],
+):
+    row, error = bacteria.harvest(db, culture_code)
+    if row is None:
+        raise HTTPException(404, "Culture inconnue")
+    if error:
+        raise HTTPException(400, error)
+    return bacteria.serialize(row)
 
 
 @router.get("/journal", response_model=list[DecisionLogEntry])

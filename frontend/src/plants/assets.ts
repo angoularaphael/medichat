@@ -5,6 +5,8 @@ export const PLANT_PHOTOS: Record<string, string> = {
   mentha: "/plants/mentha.png",
   spirulina: "/plants/spirulina.png",
   salix: "/plants/salix.png",
+  oryza: "/plants/oryza.png",
+  zingiber: "/plants/zingiber.png",
 };
 
 export function plantPhoto(code: string): string | undefined {

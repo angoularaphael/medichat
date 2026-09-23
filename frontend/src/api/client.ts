@@ -102,6 +102,21 @@ export type PlantCulture = {
   ready: boolean;
 };
 
+export type BacteriaCulture = {
+  id_culture: number;
+  code: string;
+  nom_souche: string;
+  categorie: string;
+  temperature_celsius: number;
+  quantite_boites: number;
+  statut_viabilite: string;
+  indication: string;
+  treatable: boolean;
+  notes: string;
+  description: string;
+  ready: boolean;
+};
+
 export type ChatResponse = {
   content: string;
   evaluation: CareEvaluation | null;
@@ -182,6 +197,11 @@ export const api = {
     request<PlantCulture>(`/api/plants/${code}/boost`, { method: "POST" }),
   harvestPlant: (code: string) =>
     request<PlantCulture>(`/api/plants/${code}/harvest`, { method: "POST" }),
+  bacteria: () => request<BacteriaCulture[]>("/api/bacteria"),
+  incubateBacteria: (code: string) =>
+    request<BacteriaCulture>(`/api/bacteria/${code}/incubate`, { method: "POST" }),
+  harvestBacteria: (code: string) =>
+    request<BacteriaCulture>(`/api/bacteria/${code}/harvest`, { method: "POST" }),
   journal: () => request<JournalEntry[]>("/api/journal"),
   securityAlerts: () => request<SecurityAlert[]>("/api/security/alerts"),
 };

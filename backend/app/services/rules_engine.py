@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 
 from app.models.entities import Drug, DrugInteraction, CrewMember
 from app.schemas.api import CareEvaluationResult, ExcludedOption, PlantRecommendation, Recommendation
-from app.services import plants, substitution
+from app.services import bacteria, plants, substitution
 
 
 AINS_CLASS = "AINS"
@@ -117,7 +117,7 @@ def _support_text(indication: str) -> str:
     if indication == "diarrhea":
         return (
             " Hydratation obligatoire (sels de rehydration). Relais alimentaire: riz nature (oryza). "
-            "Ensuite cuve Lactobacillus pour refaire la flore, jamais une culture pathogene."
+            " Ensuite cuve Lactobacillus acidophilus pour refaire la flore, jamais une culture pathogene."
         )
     if indication in {"nausea", "motion"}:
         return " Petites gorgees, gingembre de bord si disponible, eviter les repas gras."
@@ -128,12 +128,34 @@ def _support_text(indication: str) -> str:
 
 def _plant_fallback(db: Session, indication: str, excluded: list[ExcludedOption], rules: list[str]) -> CareEvaluationResult | None:
     plant = plants.find_ready_plant(db, indication)
-    if not plant:
+    if plant:
+        rules.append(f"plant_relay_{plant.code}")
+        protocol = (
+            f"Stocks synthetiques epuises ou contre-indiques pour cette indication. "
+            f"Relais de bord: recolter {plant.name} ({plant.species}). {plant.notes}"
+            f"{_support_text(indication)}"
+        )
+        return CareEvaluationResult(
+            excluded_options=excluded,
+            recommendation=None,
+            escalate_to_physician=False,
+            urgency="routine",
+            rules_fired=rules,
+            non_drug_protocol=protocol,
+            plant_recommendation=PlantRecommendation(
+                plant_code=plant.code,
+                plant_name=plant.name,
+                protocol=protocol,
+            ),
+        )
+    culture = bacteria.find_ready(db, indication)
+    if not culture:
         return None
-    rules.append(f"plant_relay_{plant.code}")
+    rules.append(f"bacteria_relay_{culture.code}")
     protocol = (
-        f"Stocks synthetiques epuises ou contre-indiques pour cette indication. "
-        f"Relais de bord: recolter {plant.name} ({plant.species}). {plant.notes}"
+        f"Stocks synthetiques et plantes insuffisants. Pharmacie vivante: "
+        f"prelever {culture.nom_souche} ({culture.categorie}, {culture.quantite_boites} boites, "
+        f"{culture.temperature_celsius:.0f} C). {culture.notes}"
         f"{_support_text(indication)}"
     )
     return CareEvaluationResult(
@@ -144,8 +166,8 @@ def _plant_fallback(db: Session, indication: str, excluded: list[ExcludedOption]
         rules_fired=rules,
         non_drug_protocol=protocol,
         plant_recommendation=PlantRecommendation(
-            plant_code=plant.code,
-            plant_name=plant.name,
+            plant_code=culture.code,
+            plant_name=culture.nom_souche,
             protocol=protocol,
         ),
     )

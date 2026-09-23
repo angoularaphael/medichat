@@ -14,6 +14,8 @@ SOURCES = {
     "menthe.png": "mentha.png",
     "spiruline.png": "spirulina.png",
     "salix.png": "salix.png",
+    "riz.png": "oryza.png",
+    "gimgembre.png": "zingiber.png",
 }
 
 
@@ -88,6 +90,15 @@ def mask_for(bgr: np.ndarray, name: str) -> np.ndarray:
         mask[sky] = cv2.GC_BGD
         mask[~_ellipse_mask(h, w, 0.40, 0.44, 0.50)] = cv2.GC_BGD
         mask[_ellipse_mask(h, w, 0.30, 0.34, 0.50)] = cv2.GC_FGD
+    elif name == "oryza.png":
+        white = (val > 215) & (sat < 28)
+        mask[white & ~center] = cv2.GC_BGD
+        mask[_ellipse_mask(h, w, 0.40, 0.38)] = cv2.GC_FGD
+    elif name == "zingiber.png":
+        cloth = (val > 175) & (sat < 42)
+        ginger = ((hue < 35) | (hue > 170)) & (sat > 22) & (val > 70) & (val < 210)
+        mask[cloth] = cv2.GC_BGD
+        mask[ginger] = cv2.GC_FGD
 
     return grabcut(bgr, mask)
 

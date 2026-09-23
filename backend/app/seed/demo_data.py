@@ -10,7 +10,7 @@ from app.models.entities import (
     StockMovement,
     User,
 )
-from app.services import auth, crisis, plants
+from app.services import auth, crisis, plants, bacteria
 
 
 DEMO_USERS = [
@@ -45,6 +45,7 @@ def _sync_demo_invariants(db: Session) -> None:
     _seed_users(db)
     seed_formulary(db)
     plants.seed_plants(db)
+    bacteria.seed_cultures(db)
 
 
 FORMULARY = [
@@ -178,6 +179,7 @@ def run_seed(db: Session) -> None:
     crisis.get_or_create_crisis(db)
     _seed_users(db)
     plants.seed_plants(db)
+    bacteria.seed_cultures(db)
     db.commit()
 
 
@@ -197,4 +199,5 @@ def reset_demo(db: Session) -> None:
     crisis.reset_crew_health(db)
     restock_drugs(db)
     plants.reset_plants(db)
+    bacteria.reset_cultures(db)
     db.commit()

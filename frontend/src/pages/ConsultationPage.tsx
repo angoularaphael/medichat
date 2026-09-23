@@ -75,6 +75,7 @@ export default function ConsultationPage() {
       setPlantHarvested(true);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["plants"] }),
+        queryClient.invalidateQueries({ queryKey: ["bacteria"] }),
         queryClient.invalidateQueries({ queryKey: ["journal"] }),
       ]);
     },
