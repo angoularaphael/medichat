@@ -8,6 +8,21 @@ from app.schemas.api import CareEvaluationResult
 
 SYMPTOM_PATTERNS = [
     (re.compile(r"mal de t[êe]te|cephalee|headache", re.I), "mal de tete"),
+    (
+        re.compile(
+            r"mal au cr[âa]ne|mal au cran\b|mal a la tete|mal à la tête|mal dans la tete",
+            re.I,
+        ),
+        "mal de tete",
+    ),
+    (
+        re.compile(
+            r"insomnie|dors pas|ne dors|pas dormir|mal dormir|nuit blanche|"
+            r"arrive pas a dormir|arrive pas à dormir|sommeil",
+            re.I,
+        ),
+        "insomnie",
+    ),
     (re.compile(r"douleur thoracique|chest pain", re.I), "douleur thoracique"),
     (re.compile(r"mal au rein|reins?|colique n[eé]phr|flanc", re.I), "mal au rein"),
     (re.compile(r"fi[eè]vre|fever", re.I), "fievre"),
@@ -47,8 +62,6 @@ def extract_symptoms(text: str) -> list[str]:
     for pattern, label in SYMPTOM_PATTERNS:
         if pattern.search(text):
             found.append(label)
-    if not found and text.strip():
-        found.append(text.strip()[:120])
     return found
 
 
@@ -79,10 +92,9 @@ def extract_symptoms_for_eval(history: str, message: str) -> list[str]:
         from_history = _symptoms_from_history(history)
         if from_history:
             return from_history
-    if is_meta_question(message):
-        return ["douleur"]
-    raw = extract_symptoms(message)
-    return [item for item in raw if item in CLINICAL_LABELS] or raw
+    if is_meta_question(message) and history:
+        return _symptoms_from_history(history)
+    return []
 
 
 def _symptom_label_fr(symptoms: list[str]) -> str:
@@ -99,8 +111,14 @@ def _symptom_label_fr(symptoms: list[str]) -> str:
         "diarrhee": "ta diarrhee",
         "constipation": "ta constipation",
         "infection": "cette infection",
+        "insomnie": "ton sommeil",
     }
-    return mapping.get(primary, primary)
+    label = mapping.get(primary)
+    if label:
+        return label
+    if primary in CLINICAL_LABELS:
+        return f"ce symptome ({primary})"
+    return "ce que tu ressens"
 
 
 def template_reply(

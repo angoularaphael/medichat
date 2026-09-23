@@ -83,11 +83,29 @@ LAST_RESORT_WATCH = (
     "Si ca s'aggrave vraiment (gene a respirer, douleur dans la poitrine, malaise): "
     "isolement cabine medicale. C'est le dernier recours, pas la reponse par defaut."
 )
+SYMPTOMS_CLARIFY = (
+    "Decris plus precisement ce que tu as (mal de tete, ventre, fievre, sommeil, etc.). "
+    "Sans ca je ne peux pas proposer un medicament."
+)
+SLEEP_PROTOCOL = (
+    "Pour le sommeil on ne part pas sur un analgesique par defaut. "
+    "Lumiere basse, pas d'ecrans, routine calme. "
+    "Si tu as aussi mal quelque part (tete, dos...), dis-le moi."
+)
 
 
 def _symptom_indication(symptoms: list[str]) -> str:
     s = " ".join(symptoms).lower()
-    if "headache" in s or "mal de tete" in s or "mal de tête" in s or "cephalee" in s:
+    if "insomnie" in s:
+        return "sleep"
+    if (
+        "headache" in s
+        or "mal de tete" in s
+        or "mal de tête" in s
+        or "cephalee" in s
+        or "mal au cr" in s
+        or "cran" in s.split()
+    ):
         return "pain_mild"
     if "rein" in s or "flanc" in s or "lombair" in s or "renal" in s:
         return "pain_renal"
@@ -113,7 +131,32 @@ def _symptom_indication(symptoms: list[str]) -> str:
         return "congestion"
     if "mal" in s or "douleur" in s or "souffre" in s:
         return "pain_mild"
-    return "pain_mild"
+    return "unspecified"
+
+
+def _profile_blocked_protocol(excluded: list[ExcludedOption], indication: str) -> str:
+    reasons: list[str] = []
+    for opt in excluded:
+        if opt.reason_code not in {"allergy", "interaction"}:
+            continue
+        short = opt.drug_code
+        if opt.reason_code == "allergy":
+            reasons.append(f"{short}: allergie")
+        else:
+            reasons.append(f"{short}: {opt.reason_text}")
+    detail = " ".join(reasons[:4])
+    intro = (
+        "Il reste des medicaments en stock pour ce symptome, "
+        "mais ton profil les exclut tous."
+    )
+    if detail:
+        intro = f"{intro} ({detail})"
+    if indication == "pain_mild":
+        intro += (
+            " Avec un anticoagulant, les AINS (ibuprofene, aspirine) sont en general "
+            "contre-indiques; le paracetamol reste l'option si tu n'y es pas allergique."
+        )
+    return f"{intro} Surveille tes signes et previens le poste medical."
 
 
 def _support_text(indication: str) -> str:
@@ -293,7 +336,39 @@ def evaluate_care(
             non_drug_protocol=ONBOARD_EMERGENCY,
         )
 
+    if not symptoms or not any(str(s).strip() for s in symptoms):
+        rules.append("symptoms_unclear")
+        return CareEvaluationResult(
+            excluded_options=[],
+            recommendation=None,
+            escalate_to_physician=False,
+            urgency="routine",
+            rules_fired=rules,
+            non_drug_protocol=SYMPTOMS_CLARIFY,
+        )
+
     indication = _symptom_indication(symptoms)
+    if indication == "unspecified":
+        rules.append("indication_unspecified")
+        return CareEvaluationResult(
+            excluded_options=[],
+            recommendation=None,
+            escalate_to_physician=False,
+            urgency="routine",
+            rules_fired=rules,
+            non_drug_protocol=SYMPTOMS_CLARIFY,
+        )
+    if indication == "sleep":
+        rules.append("sleep_non_pharm")
+        return CareEvaluationResult(
+            excluded_options=[],
+            recommendation=None,
+            escalate_to_physician=False,
+            urgency="routine",
+            rules_fired=rules,
+            non_drug_protocol=SLEEP_PROTOCOL,
+        )
+
     candidates = _candidate_drugs(db, indication)
 
     if requested_drug_code:
@@ -404,11 +479,7 @@ def evaluate_care(
     rules.append("no_option")
     still_on_shelf = any(drug.stock_units > 0 for drug in _expanded_candidates(db, candidates, indication))
     if still_on_shelf:
-        protocol = (
-            "Il reste des medicaments en stock pour ce symptome, "
-            "mais ton profil (allergies ou traitement) ne permet pas de t'en proposer un. "
-            "Surveille tes signes et previens le poste medical."
-        )
+        protocol = _profile_blocked_protocol(excluded, indication)
     else:
         protocol = LAST_RESORT_WATCH
     return CareEvaluationResult(

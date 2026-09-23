@@ -235,3 +235,69 @@ def test_para_allergy_uses_other_drug_if_available(client):
         json={"crew_member_code": "elsa", "symptoms": ["mal de tete"]},
     )
     assert response.json()["recommendation"]["drug_code"] == "ibuprofen"
+
+
+def test_mal_au_cran_maps_to_headache_analgesic(client, monkeypatch):
+    from app.services import ollama_client
+
+    async def _tpl(message, evaluation, history="", symptoms=None, meta_followup=False):
+        return (
+            ollama_client.template_reply(
+                evaluation, message, symptoms=symptoms or [], meta_followup=meta_followup
+            ),
+            "template",
+        )
+
+    monkeypatch.setattr(ollama_client, "reformulate_with_ollama", _tpl)
+    response = client.post(
+        "/api/chat/message",
+        json={
+            "crew_member_code": "elsa",
+            "message": "j ai mal au cran",
+            "session_id": "cran",
+        },
+    )
+    assert response.json()["evaluation"]["recommendation"]["drug_code"] == "paracetamol"
+
+
+def test_insomnia_no_paracetamol(client, monkeypatch):
+    from app.services import ollama_client
+
+    async def _tpl(message, evaluation, history="", symptoms=None, meta_followup=False):
+        return (
+            ollama_client.template_reply(
+                evaluation, message, symptoms=symptoms or [], meta_followup=meta_followup
+            ),
+            "template",
+        )
+
+    monkeypatch.setattr(ollama_client, "reformulate_with_ollama", _tpl)
+    response = client.post(
+        "/api/chat/message",
+        json={
+            "crew_member_code": "elsa",
+            "message": "depuis hier je dors pas",
+            "session_id": "sleep",
+        },
+    )
+    data = response.json()
+    assert data["evaluation"]["recommendation"] is None
+    assert "sleep_non_pharm" in data["evaluation"]["rules_fired"]
+    assert "paracetamol" not in (data["content"] or "").lower()
+
+
+def test_raphael_para_allergy_blocks_with_clear_reasons(client):
+    client.post("/api/demo/reset")
+    client.patch(
+        "/api/crew/raphael/profile",
+        json={"allergies": ["paracetamol"], "current_treatments": [{"drug_code": "warfarin", "dose_mg": 5}]},
+    )
+    response = client.post(
+        "/api/care/evaluate",
+        json={"crew_member_code": "raphael", "symptoms": ["mal de tete"]},
+    )
+    data = response.json()
+    assert data["recommendation"] is None
+    protocol = (data["non_drug_protocol"] or "").lower()
+    assert "ibuprofen" in protocol or "warfarin" in protocol or "warfarine" in protocol
+    assert "paracetamol" in protocol or "allergie" in protocol

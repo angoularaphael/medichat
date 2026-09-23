@@ -51,7 +51,10 @@ def test_unknown_symptom_is_treated_from_stock(client, monkeypatch):
     assert response.status_code == 200
     payload = response.json()
     evaluation = payload["evaluation"]
-    assert evaluation["recommendation"]["drug_code"] == "paracetamol"
+    assert evaluation["recommendation"] is None
+    assert "symptoms_unclear" in evaluation["rules_fired"] or "indication_unspecified" in evaluation[
+        "rules_fired"
+    ]
     content = payload["content"].lower()
     assert "latence" not in content
     assert "isolement" not in content
