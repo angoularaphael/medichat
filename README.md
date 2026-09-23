@@ -22,7 +22,8 @@ decision, mais il ne prescrit jamais seul.
 - Identification faciale locale optionnelle et conversations persistantes.
 - Stocks, confirmations de prise, interactions, substitutions et journal audit.
 - Relais par plantes ou cultures biologiques quand tous les flacons utiles sont
-  epuises.
+  epuises. EIR nomme l'origine du medicament essentiel et le confort possible.
+  Il ne decrit pas de fabrication. Voir `docs/pharmacie-vivante.md`.
 - Urgences critiques et guide explicite des cas d isolement cabine medicale.
 - Crise 15 %, triage, rationnement et comparaison d autonomie medicale.
 - MQTT vers le bus Yggdrasil et reception des alertes securite MIMIR.

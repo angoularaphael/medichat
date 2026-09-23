@@ -5,6 +5,9 @@ from app.services import journal
 
 READY_THRESHOLD = 50.0
 
+# Catalogue de serre. Les textes nomment l'origine connue d'un medicament
+# essentiel et le relais de confort. Ils ne decrivent pas une extraction,
+# une decoction dosee, ni une purification.
 DEFAULT_PLANTS = [
     {
         "code": "thymus",
@@ -15,8 +18,8 @@ DEFAULT_PLANTS = [
         "biomass_percent": 82.0,
         "growth_rate": 5.2,
         "status": "ready",
-        "notes": "Huile antiseptique. Relais si les antibiotiques sont epuises.",
-        "description": "Thym cultive en nappe hydroponique. Ses huiles (thymol) servent d'antiseptique de bord quand amoxicilline et azithromycine sont a zero. Recolte des sommites fleuries, infusion concentree, usage externe ou oral leger selon protocole EIR.",
+        "notes": "Amoxicilline et azithromycine vides. Le thym ne les fabrique pas: infusion legere des sommites pour une gorge irritee, puis poste medical. La penicilline industrielle vient de Penicillium.",
+        "description": "Thymus vulgaris, confort de gorge quand les antibiotiques essentiels sont a zero. Le thymol est un constituant de la plante, pas un medicament du catalogue. EIR ne decrit pas d'extraction d'huile essentielle.",
     },
     {
         "code": "allium",
@@ -27,20 +30,20 @@ DEFAULT_PLANTS = [
         "biomass_percent": 71.0,
         "growth_rate": 4.4,
         "status": "ready",
-        "notes": "Extrait antimicrobien. Deuxieme relais botanique.",
-        "description": "Ail orbital a bulbe compact. L'allicine prend le relais antimicrobien si le thymus est trop faible. Conservation des caieux au sec, broyage juste avant usage pour garder l'activite.",
+        "notes": "Ail alimentaire. Ecraser une gousse fraiche libere l'allicine, utile en cuisine et en confort si les antibiotiques sont vides. Ce n'est pas de l'amoxicilline.",
+        "description": "Allium sativum. Relais de confort seulement. L'industrie ne tire pas l'amoxicilline ni l'azithromycine de l'ail. Pas de preparation concentree.",
     },
     {
         "code": "artemisia",
         "name": "Artemisia luna",
         "species": "Artemisia annua",
-        "indication": "infection",
-        "replaces_drug_class": "antibiotic",
+        "indication": "reference",
+        "replaces_drug_class": "antimalarial",
         "biomass_percent": 54.0,
         "growth_rate": 3.6,
         "status": "growing",
-        "notes": "Culture antibacterienne lente, en reserve.",
-        "description": "Armoise annuelle sous LED lune. Croissance lente, reserve strategique. Utile si thymus et allium sont deja recoltes. Feuilles sechees, decoction courte, surveillance des constantes apres prise.",
+        "notes": "Source historique de l'artemisinine (artesunate, artemether). Reference de serre, pas une tisane antipaludique.",
+        "description": "Artemisia annua est la plante d'ou vient l'artemisinine, base des antipaludiques essentiels. L'usine extrait et purifie la molecule. Une tisane maison n'est pas ce medicament. EIR ne donne aucun mode d'extraction. La culture reste une reference, pas une ordonnance.",
     },
     {
         "code": "mentha",
@@ -51,8 +54,8 @@ DEFAULT_PLANTS = [
         "biomass_percent": 66.0,
         "growth_rate": 6.1,
         "status": "ready",
-        "notes": "Relais si l'ondansetron n'est plus en stock.",
-        "description": "Menthe verte de cabine, pousse rapide. Feuilles pour nausees de microgravite quand l'ondansetron est epuise. Infusion tiede, petites prises rapprochées, eviter si reflux severe.",
+        "notes": "Feuilles de menthe en infusion tiede si l'ondansetron est vide. Confort des nausees, pas une copie du medicament.",
+        "description": "Mentha spicata. Relais de confort quand les antiemetiques essentiels manquent. Eviter si le reflux est severe. Pas de dose en milligrammes.",
     },
     {
         "code": "salix",
@@ -63,8 +66,8 @@ DEFAULT_PLANTS = [
         "biomass_percent": 78.0,
         "growth_rate": 4.8,
         "status": "ready",
-        "notes": "Ecorce analgesique. Relais du paracetamol et des AINS.",
-        "description": "Saule blanc orbital. L'ecorce contient des salicines, relais naturel si paracetamol, ibuprofene et aspirine sont interdits (allergie) ou epuises. Decoction d'ecorce, ne pas associer a la warfarine.",
+        "notes": "Saule blanc, source historique des salicines, famille de l'aspirine. Si paracetamol, ibuprofene et aspirine sont vides ou interdits: signaler le saule, ne pas doser une decoction. Interaction possible avec la warfarine. Poste medical.",
+        "description": "Salix alba. L'aspirine du stock est une molecule fabriquee en usine, pas une ecorce. EIR nomme le lien historique et refuse une preparation dosee, a cause de l'irritation et des anticoagulants.",
     },
     {
         "code": "spirulina",
@@ -75,8 +78,8 @@ DEFAULT_PLANTS = [
         "biomass_percent": 90.0,
         "growth_rate": 8.0,
         "status": "ready",
-        "notes": "Soutien nutritionnel. Ne remplace pas un antalgique ni un antibiotique.",
-        "description": "Cyanobacterie en photobioreacteur. Proteines, fer, soutien apres effort ou infection. Ce n'est pas un medicament de crise: on l'utilise en recuperation, jamais a la place d'un relais therapeutique.",
+        "notes": "Cyanobacterie alimentaire: proteines et fer en recuperation. Ne remplace ni un antalgique ni un antibiotique.",
+        "description": "Arthrospira platensis en photobioreacteur. Soutien nutritionnel apres l'episode, jamais a la place d'un medicament essentiel.",
     },
     {
         "code": "oryza",
@@ -87,8 +90,8 @@ DEFAULT_PLANTS = [
         "biomass_percent": 88.0,
         "growth_rate": 5.5,
         "status": "ready",
-        "notes": "Riz nature et eau de riz. Relais du Smecta et des sels si la diarrhee continue.",
-        "description": "Riz hydroponique compact. En diarrhee ou vomissements, le riz nature et l'eau de riz lient les selles, apportent de l'energie et se digerent bien en microgravite. Ce n'est pas un antibiotique: on l'associe a l'hydratation, puis au Smecta s'il reste en stock.",
+        "notes": "Riz nature et eau de cuisson si Smecta, sels et loperamide sont vides. Ca aide a lier et a manger. Ce n'est pas un antidiarrheique fabrique.",
+        "description": "Oryza sativa. Relais alimentaire de la diarrhee, avec boisson par petites gorgees. Le vrai medicament de rehydration reste les sels oraux du stock.",
     },
     {
         "code": "zingiber",
@@ -99,10 +102,71 @@ DEFAULT_PLANTS = [
         "biomass_percent": 74.0,
         "growth_rate": 4.2,
         "status": "ready",
-        "notes": "Rhizome anti-nausee. Relais si ondansetron et meclizine sont vides.",
-        "description": "Gingembre orbital, etudie pour le mal de l'espace. Macher une lamelle ou infusion tiede contre nausees et vomissements quand les antiemetiques synthetiques manquent. Eviter en reflux severe.",
+        "notes": "Lamelle de gingembre ou infusion tiede contre les nausees si ondansetron et meclizine sont vides. Eviter en reflux severe.",
+        "description": "Zingiber officinale, etudie pour le mal de mouvement. Confort de bord, pas une synthese d'ondansetron.",
+    },
+    {
+        "code": "aloe",
+        "name": "Aloes de serre",
+        "species": "Aloe vera",
+        "indication": "brulure",
+        "replaces_drug_class": "topical",
+        "biomass_percent": 76.0,
+        "growth_rate": 3.2,
+        "status": "ready",
+        "notes": "Apres eau tiede, gel clair de la feuille sur une petite brulure a peau non ouverte. Pas sur brulure grave, chimique ou infectee.",
+        "description": "Aloe vera. Geste de premiers secours deja connu, pas une pommade pharmaceutique. Grande surface: alerte medicale, pas la serre.",
+    },
+    {
+        "code": "calendula",
+        "name": "Souci de cabine",
+        "species": "Calendula officinalis",
+        "indication": "skin",
+        "replaces_drug_class": "topical",
+        "biomass_percent": 68.0,
+        "growth_rate": 4.5,
+        "status": "ready",
+        "notes": "Fleurs en compresse tiede sur peau intacte qui gratte, s'il n'y a pas de creme. Pas sur plaie profonde ni infection.",
+        "description": "Calendula officinalis. Confort cutane. Ce n'est pas un antiseptique essentiel et EIR ne decrit pas d'extrait alcoolique.",
+    },
+    {
+        "code": "plantago",
+        "name": "Plantain de coursive",
+        "species": "Plantago major",
+        "indication": "skin",
+        "replaces_drug_class": "topical",
+        "biomass_percent": 62.0,
+        "growth_rate": 4.0,
+        "status": "ready",
+        "notes": "Apres lavage, une feuille rincee peut couvrir une petite ecorchure. Ce n'est pas de l'amoxicilline. Fievre ou rougeur qui s'etend: poste medical.",
+        "description": "Plantago major. Couverture de petite plaie propre. Les antibiotiques essentiels restent les flacons, puis la source nommee Penicillium, sans fermentation a bord.",
+    },
+    {
+        "code": "matricaria",
+        "name": "Camomille de cabine",
+        "species": "Matricaria chamomilla",
+        "indication": "sleep",
+        "replaces_drug_class": "comfort",
+        "biomass_percent": 70.0,
+        "growth_rate": 5.0,
+        "status": "ready",
+        "notes": "Infusion legere le soir pour accompagner le sommeil ou le stress. Pas un somnifere, pas une dose en milligrammes.",
+        "description": "Matricaria chamomilla. Rituel de confort. Aucun hypnotique essentiel n'est fabrique a partir de cette fleur dans EIR.",
+    },
+    {
+        "code": "cinchona",
+        "name": "Quinquina de reference",
+        "species": "Cinchona officinalis",
+        "indication": "reference",
+        "replaces_drug_class": "antimalarial",
+        "biomass_percent": 28.0,
+        "growth_rate": 1.2,
+        "status": "growing",
+        "notes": "Source historique de la quinine. Ecorce non utilisable en preparation maison: risque de toxicite.",
+        "description": "Cinchona officinalis est la source historique de la quinine, antipaludique essentiel fabrique et dose en pharmacie. L'ecorce brute peut intoxiquer (cinchonisme). EIR ne donne ni dose d'ecorce ni extraction. On attend le flacon ou le poste medical.",
     },
 ]
+
 
 def _refresh_status(plant: PlantCulture) -> None:
     if plant.biomass_percent < 20:
@@ -121,6 +185,8 @@ def seed_plants(db: Session) -> None:
     for item in DEFAULT_PLANTS:
         row = existing.get(item["code"])
         if row:
+            row.name = item["name"]
+            row.species = item["species"]
             row.notes = item["notes"]
             row.description = item["description"]
             row.indication = item["indication"]
@@ -159,7 +225,7 @@ def serialize(plant: PlantCulture) -> dict:
         "status": plant.status,
         "notes": plant.notes,
         "description": plant.description,
-        "ready": plant.biomass_percent >= READY_THRESHOLD,
+        "ready": plant.biomass_percent >= READY_THRESHOLD and plant.indication != "reference",
     }
 
 
@@ -220,6 +286,8 @@ def harvest(db: Session, code: str) -> tuple[PlantCulture | None, str | None]:
     plant = db.query(PlantCulture).filter(PlantCulture.code == code).first()
     if not plant:
         return None, "Culture inconnue"
+    if plant.indication == "reference":
+        return plant, "Culture de reference. EIR ne la transforme pas en medicament."
     if plant.biomass_percent < READY_THRESHOLD:
         return plant, "Biomasse insuffisante. Irriguez ou boostez la lumiere avant recolte."
     plant.biomass_percent = max(12.0, plant.biomass_percent - 28.0)
@@ -228,7 +296,7 @@ def harvest(db: Session, code: str) -> tuple[PlantCulture | None, str | None]:
     journal.log_decision(
         db,
         action="plant_harvest",
-        summary=f"Recolte {plant.name} pour protocole de bord",
+        summary=f"Recolte {plant.name} pour relais de confort",
         payload={"plant_code": plant.code, "biomass_percent": plant.biomass_percent},
     )
     return plant, None

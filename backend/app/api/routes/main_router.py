@@ -611,6 +611,10 @@ def incubate_bacteria(
     row = bacteria.incubate(db, culture_code)
     if not row:
         raise HTTPException(404, "Culture inconnue")
+    if row.code == "staphylococcus_aureus":
+        raise HTTPException(400, "Souche de test: incubation interdite.")
+    if row.categorie == "Reference":
+        raise HTTPException(400, "Souche de reference: pas de culture a bord.")
     if row.statut_viabilite == "Contamine":
         raise HTTPException(400, "Souche contaminee: incubation interdite.")
     return bacteria.serialize(row)

@@ -289,7 +289,7 @@ export default function DashboardPage() {
             </article>
             <article>
               <h3>Serre de bord</h3>
-              <p>Plantes d'un cote, cuves bacteriennes de l'autre. Relais quand les flacons sont vides ou interdits.</p>
+              <p>Plantes et cuves. En rupture, EIR explique l'origine du medicament et le relais de confort, sans mode de fabrication.</p>
               <Link className="protocol-link" to="/cultures">
                 <Leaf size={18} /> Ouvrir les cultures
               </Link>

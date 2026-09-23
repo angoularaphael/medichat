@@ -1,5 +1,10 @@
 # Contrat MQTT Yggdrasil — EIR
 
+MIMIR (depot [space-net](https://github.com/angoularaphael/space-net)) est le reseau.
+EIR est la pharmacie. Les deux parlent sur le broker Mosquitto local, QoS 1, JSON UTF-8.
+Si le broker tombe, EIR ecrit dans `backend/data/offline_outbox.jsonl` et rejoue au retour.
+Le lien Terre n'est pas necessaire pour cet echange.
+
 ## Topics publies par EIR
 
 ### `yggdrasil/eir/alert/crisis`

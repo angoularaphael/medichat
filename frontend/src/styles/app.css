@@ -1403,6 +1403,10 @@ button:disabled {
   background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.2), rgba(255, 188, 107, 0.35) 40%, rgba(40, 24, 8, 0.92));
 }
 
+.bacteria-dish.reference span {
+  background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.18), rgba(180, 170, 140, 0.32) 40%, rgba(28, 24, 16, 0.92));
+}
+
 .bacteria-dish.test span {
   background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.18), rgba(255, 110, 139, 0.32) 40%, rgba(40, 8, 16, 0.92));
 }

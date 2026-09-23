@@ -35,7 +35,10 @@ def test_empty_antibiotics_use_plant_relay(client):
     )
     data = r.json()
     assert data["recommendation"] is None
-    assert data["plant_recommendation"]["plant_code"] in {"thymus", "allium", "artemisia"}
+    assert data["plant_recommendation"]["plant_code"] in {"thymus", "allium"}
+    protocol = data["non_drug_protocol"].lower()
+    assert "fermentation" in protocol
+    assert "amoxicilline" in protocol
 
 
 def test_plants_list_and_harvest(client):
@@ -127,6 +130,8 @@ def test_plant_only_when_analgesic_stock_is_empty(client):
     data = response.json()
     assert data["recommendation"] is None
     assert data["plant_recommendation"]["plant_code"] == "salix"
+    assert "aspirine" in data["non_drug_protocol"].lower()
+    assert "extraction" in data["non_drug_protocol"].lower()
 
 
 def test_diarrhea_recommends_smecta(client):
@@ -178,10 +183,14 @@ def test_plants_exclude_probiotic_vat(client):
 
 def test_bacteria_living_pharmacy(client):
     rows = {item["code"]: item for item in client.get("/api/bacteria").json()}
-    assert len(rows) == 6
+    assert len(rows) == 9
     assert rows["lactobacillus_acidophilus"]["categorie"] == "Probiotique"
     assert rows["lactobacillus_acidophilus"]["ready"] is True
+    assert rows["bacillus_subtilis"]["categorie"] == "Probiotique"
+    assert rows["bifidobacterium_longum"]["treatable"] is True
     assert rows["penicillium_chrysogenum"]["categorie"] == "Antibiotique"
+    assert rows["saccharopolyspora_erythraea"]["treatable"] is False
+    assert rows["streptomyces_griseus"]["categorie"] == "Reference"
     assert rows["staphylococcus_aureus"]["treatable"] is False
     assert rows["staphylococcus_aureus"]["ready"] is False
 
@@ -190,6 +199,23 @@ def test_staphylococcus_cannot_be_harvested(client):
     response = client.post("/api/bacteria/staphylococcus_aureus/harvest")
     assert response.status_code == 400
     assert "traitement" in response.json()["detail"].lower()
+
+
+def test_staphylococcus_cannot_be_incubated(client):
+    response = client.post("/api/bacteria/staphylococcus_aureus/incubate")
+    assert response.status_code == 400
+    assert "incubation" in response.json()["detail"].lower()
+
+
+def test_reference_strains_are_not_cultured(client):
+    response = client.post("/api/bacteria/saccharopolyspora_erythraea/incubate")
+    assert response.status_code == 400
+    plants = {item["code"]: item for item in client.get("/api/plants").json()}
+    assert plants["cinchona"]["ready"] is False
+    assert plants["artemisia"]["indication"] == "reference"
+    blocked = client.post("/api/plants/cinchona/harvest")
+    assert blocked.status_code == 400
+    assert "reference" in blocked.json()["detail"].lower()
 
 
 def test_empty_rice_falls_back_to_probiotic(client):
@@ -222,10 +248,9 @@ def test_empty_antibiotics_and_plants_use_penicillium(client):
     )
     data = response.json()
     assert data["recommendation"] is None
-    assert data["plant_recommendation"]["plant_code"] in {
-        "penicillium_chrysogenum",
-        "streptomyces_griseus",
-    }
+    assert data["plant_recommendation"]["plant_code"] == "penicillium_chrysogenum"
+    assert "penicilline" in data["non_drug_protocol"].lower()
+    assert "fermentation" in data["non_drug_protocol"].lower()
 
 
 def test_para_allergy_uses_other_drug_if_available(client):

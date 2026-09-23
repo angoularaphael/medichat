@@ -100,6 +100,7 @@ PAIN_CLARIFY = (
 SLEEP_PROTOCOL = (
     "Pour le sommeil on ne part pas sur un analgesique par defaut. "
     "Lumiere basse, pas d'ecrans, routine calme. "
+    "Une infusion legere de camomille de la serre peut accompagner, ce n'est pas un somnifere. "
     "Si tu as aussi mal quelque part (tete, dos...), dis-le moi."
 )
 FATIGUE_PROTOCOL = (
@@ -116,15 +117,21 @@ DEHYDRATION_PROTOCOL = (
 )
 PRURIT_PROTOCOL = (
     "Demangeaisons: evite de gratter, douche tiede, vetements amples. "
+    "Si la peau est intacte, une compresse de souci (calendula) peut soulager. "
     "Si gorge qui serre ou essoufflement, alerte tout de suite."
 )
 BRULURE_PROTOCOL = (
     "Brulure legere: eau tiede 10-15 min, pas de glace directe, couvre proprement. "
+    "Si la peau n'est pas ouverte, le gel clair d'une feuille d'aloes de la serre peut suivre. "
     "Brulure chimique ou grande surface: alerte medicale."
 )
 ANXIETE_PROTOCOL = (
     "Stress a bord: respiration lente, ancrage, parle-moi. "
+    "La camomille de cabine est un confort, pas un medicament. "
     "Si douleur poitrine ou essoufflement en plus, ce n'est plus que du stress."
+)
+RELAY_LIMIT = (
+    " EIR ne fabrique pas la molecule: pas de fermentation, pas d'extraction, pas de purification, pas de dose de plante brute."
 )
 
 
@@ -260,7 +267,8 @@ def _plant_fallback(
         rules.append(f"plant_relay_{plant.code}")
         protocol = (
             f"Il n'y a plus de medicament en stock pour ca. "
-            f"Utilise {plant.name} dans la serre: {plant.notes}"
+            f"Relais serre, {plant.name} ({plant.species}): {plant.notes}"
+            f"{RELAY_LIMIT}"
             f"{_support_text(indication)}"
         )
         return CareEvaluationResult(
@@ -282,8 +290,9 @@ def _plant_fallback(
     rules.append(f"bacteria_relay_{culture.code}")
     protocol = (
         f"Il n'y a plus de medicament en stock. "
-        f"Pharmacie vivante: {culture.nom_souche} ({culture.quantite_boites} boites). "
-        f"{culture.notes}{_support_text(indication)}"
+        f"Cuve {culture.nom_souche} ({culture.quantite_boites} boites): {culture.notes}"
+        f"{RELAY_LIMIT}"
+        f"{_support_text(indication)}"
     )
     return CareEvaluationResult(
         excluded_options=excluded,
@@ -497,6 +506,7 @@ def evaluate_care(
         rules.append(f"{indication}_non_pharm")
         protocol = (
             "Repos, hydratation, air de la cabine si possible. "
+            "Une infusion legere de thym peut adoucir une toux seche: ce n'est pas un antibiotique. "
             "Pas d'antibiotique automatique. Si fievre haute, essoufflement ou douleur poitrine, dis-le."
         )
         return CareEvaluationResult(

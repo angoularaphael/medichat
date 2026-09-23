@@ -181,6 +181,8 @@ async def reformulate_with_ollama(
         "Ne recopies jamais le message du patient mot pour mot. Pas de formule du type j'entends. "
         "Tu reformules UNIQUEMENT la decision JSON. "
         "Ne prescris jamais un medicament absent du JSON. "
+        "Si un relais plante ou cuve est dans le JSON, repete son origine et sa limite. "
+        "N'invente aucun milieu de culture, aucune extraction, aucune purification, aucune dose de plante brute. "
         "Reponds a CHAQUE point dans symptom_items du JSON si present. "
         "Reponds au mal ou a la question, en phrases courtes. "
         "N'invente pas de latence terrestre, de coupure, ni d'isolement "

@@ -39,7 +39,14 @@ Initialisation : `Base.metadata.create_all` au demarrage API + `seed/demo_data.p
 
 ## MQTT
 
-Voir [mqtt-yggdrasil.md](./mqtt-yggdrasil.md).
+Voir [mqtt-yggdrasil.md](./mqtt-yggdrasil.md). MIMIR est le depot
+[space-net](https://github.com/angoularaphael/space-net). EIR publie crise et
+stock bas, et ecoute `yggdrasil/mimir/security/infirmary`.
+
+## Pharmacie vivante
+
+Voir [pharmacie-vivante.md](./pharmacie-vivante.md). Le relais serre/cuves ne
+decrit pas de fabrication de medicament.
 
 ## Securite du prototype
 

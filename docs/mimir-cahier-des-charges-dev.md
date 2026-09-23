@@ -1,5 +1,8 @@
 # MIMIR — cahier des charges developpeur
 
+Depot de reference : [github.com/angoularaphael/space-net](https://github.com/angoularaphael/space-net), fichier `docs/cahier-des-charges-dev.md`.  
+Ce document EIR ne garde que le contrat vu depuis la pharmacie.
+
 Projet : securisation et autonomie du reseau de capsule, vaisseau Yggdrasil.  
 Pilier : DeepTech, cas CyberSpace et OfflineSpace.  
 Lien EIR : bus MQTT local. EIR reste la pharmacie ; MIMIR reste le reseau.

@@ -46,7 +46,10 @@ Le cœur n’est pas « une IA qui prescrit », mais un **moteur de règles méd
 9. **Indicateur d’autonomie** — jours d’autonomie par médicament et comparaison
    « à la demande » / « rationnement + quarantaine ».
 10. **Pharmacie vivante** — plantes et cultures biologiques proposées seulement
-    lorsque les médicaments utiles sont réellement épuisés.
+    lorsque les médicaments utiles sont réellement épuisés. EIR explique
+    l'origine botanique ou microbienne du médicament essentiel et le relais de
+    confort. Il ne décrit pas une fabrication (fermentation, extraction,
+    purification). Détail : `docs/pharmacie-vivante.md`.
 11. **Journal des décisions** — historique horodaté pour audit.
 
 ### 3.2 Flux principal (nominal)

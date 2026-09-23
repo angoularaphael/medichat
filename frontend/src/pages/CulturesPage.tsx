@@ -51,8 +51,8 @@ export default function CulturesPage() {
           <span className="eyebrow">Bioregeneration / Pharmacie vivante</span>
           <h1>Cultures de bord</h1>
           <p>
-            Serre pour les plantes, cuves pour les souches. Photos de face des cultures.
-            Sans livraison terrestre, ces stocks synthetisent ou testent les traitements a bord.
+            Serre et cuves de reference. Quand un flacon essentiel est vide, EIR nomme la plante
+            ou la souche liee au medicament, le relais de confort, et la limite: pas de fabrication a bord.
           </p>
         </div>
       </div>
@@ -60,7 +60,10 @@ export default function CulturesPage() {
       <section className="cultures-section" aria-labelledby="plantes-title">
         <div className="section-heading">
           <h2 id="plantes-title">Plantes</h2>
-          <p>Relais botaniques quand un flacon est interdit ou vide. Riz et gingembre inclus.</p>
+          <p>
+            Relais de confort quand un flacon est vide. Quinquina et armoise restent des references:
+            EIR ne les transforme pas en medicament.
+          </p>
         </div>
         <div className="plant-grid">
           {plants.data?.map((plant, index) => (
@@ -85,8 +88,9 @@ export default function CulturesPage() {
         <div className="section-heading">
           <h2 id="bacteries-title">Bacteries</h2>
           <p>
-            Table stock_cultures_biologiques: souches, categorie, temperature, boites de Petri, viabilite.
-            La cuve Lactobacillus est ici. Staphylococcus aureus sert de cobaye, jamais de traitement.
+            Souches alimentaires, sources industrielles nommees, et une souche de test.
+            Lactobacillus, Bacillus et Bifidobacterium sont des ferments. Les references ne se cultivent pas.
+            Staphylococcus aureus ne s'incube pas et ne se preleve pas.
           </p>
         </div>
         <div className="plant-grid">
@@ -217,7 +221,7 @@ function BacteriaCard({
       </button>
       <p>{open ? row.description || row.notes : row.notes}</p>
       <div className="plant-meta">
-        <span>Temperature</span>
+        <span>Conservation</span>
         <strong>{row.temperature_celsius.toFixed(1)} C</strong>
       </div>
       <div className="plant-biomass">
@@ -231,7 +235,16 @@ function BacteriaCard({
       </div>
       <div className="plant-actions">
         {isAdmin && (
-          <button type="button" disabled={busy || row.statut_viabilite === "Contamine"} onClick={onIncubate}>
+          <button
+            type="button"
+            disabled={
+              busy
+              || row.statut_viabilite === "Contamine"
+              || row.code === "staphylococcus_aureus"
+              || row.categorie === "Reference"
+            }
+            onClick={onIncubate}
+          >
             <FlaskConical size={16} /> Incuber
           </button>
         )}
