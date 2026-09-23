@@ -18,6 +18,10 @@ def ensure_schema(engine: Engine) -> None:
         cols = {column["name"] for column in inspector.get_columns("chat_messages")}
         if "conversation_id" not in cols:
             statements.append("ALTER TABLE chat_messages ADD COLUMN conversation_id VARCHAR(36)")
+    if "crisis_state" in tables:
+        cols = {column["name"] for column in inspector.get_columns("crisis_state")}
+        if "watch_scenario" not in cols:
+            statements.append("ALTER TABLE crisis_state ADD COLUMN watch_scenario VARCHAR(32) DEFAULT 'nominal'")
     if not statements:
         return
     with engine.begin() as connection:

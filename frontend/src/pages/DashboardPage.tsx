@@ -294,6 +294,13 @@ export default function DashboardPage() {
                 <Leaf size={18} /> Ouvrir les cultures
               </Link>
             </article>
+            <article>
+              <h3>Veille constantes</h3>
+              <p>Score separe du chat, zones de quarantaine et courbe des dix dernieres minutes.</p>
+              <Link className="protocol-link" to="/surveillance">
+                <Gauge size={18} /> Ouvrir la veille
+              </Link>
+            </article>
           </div>
         </motion.section>
       )}

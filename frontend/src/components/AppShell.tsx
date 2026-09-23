@@ -14,6 +14,7 @@ const navItems = [
   { to: "/dashboard", label: "Mission", icon: LayoutDashboard },
   { to: "/consultation", label: "Medichat", icon: HeartPulse },
   { to: "/cultures", label: "Cultures", icon: Leaf },
+  { to: "/surveillance", label: "Veille", icon: Activity },
   { to: "/journal", label: "Journal", icon: Radio },
 ];
 

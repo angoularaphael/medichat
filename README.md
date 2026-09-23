@@ -19,6 +19,8 @@ decision, mais il ne prescrit jamais seul.
   concerne et extraction locale completee par Ollama si disponible.
 - Lecture a voix haute des reponses, et message de bienvenue parle au debut
   de chaque nouvelle discussion. Le bouton Voix coupe ou relance la lecture.
+- Veille de 40 membres : constantes simulees, score separe du chat, zones de
+  quarantaine, contacts et courbe des dix dernieres minutes.
 - Reponse distincte pour chaque symptome, avec options ecartees et raisons.
 - Profils equipage, allergies, traitements, authentification JWT et roles.
 - Identification faciale locale optionnelle et conversations persistantes.

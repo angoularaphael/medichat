@@ -152,6 +152,42 @@ export type BacteriaCulture = {
   ready: boolean;
 };
 
+export type WatchSample = { recorded_at: string; score: number; level: string };
+
+export type WatchSubject = {
+  code: string;
+  full_name: string;
+  temperature_c: number;
+  spo2: number;
+  pulse: number;
+  respiration: number;
+  score: number;
+  level: string;
+  zone_code: string | null;
+  waiting_place: boolean;
+  isolated: boolean;
+  level_change_at: string | null;
+  samples: WatchSample[];
+};
+
+export type WatchBoard = {
+  scenario: string;
+  note: string;
+  crew_count: number;
+  isolated_count: number;
+  zones: { code: string; capacity: number; occupants: string[]; full: boolean }[];
+  waiting: string[];
+  contacts: {
+    zone_code: string;
+    subject_a: string;
+    subject_b: string;
+    started_at: string | null;
+    ended_at: string | null;
+    open: boolean;
+  }[];
+  subjects: WatchSubject[];
+};
+
 export type ChatResponse = {
   content: string;
   conversation_id?: string | null;
@@ -321,4 +357,7 @@ export const api = {
     request<BacteriaCulture>(`/api/bacteria/${code}/harvest`, { method: "POST" }),
   journal: () => request<JournalEntry[]>("/api/journal"),
   securityAlerts: () => request<SecurityAlert[]>("/api/security/alerts"),
+  surveillance: () => request<WatchBoard>("/api/surveillance"),
+  surveillanceScenario: (name: string) =>
+    request<WatchBoard>(`/api/surveillance/scenario/${name}`, { method: "POST" }),
 };

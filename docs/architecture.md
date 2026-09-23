@@ -48,6 +48,13 @@ stock bas, et ecoute `yggdrasil/mimir/security/infirmary`.
 Voir [pharmacie-vivante.md](./pharmacie-vivante.md). Le relais serre/cuves ne
 decrit pas de fabrication de medicament.
 
+## Veille
+
+`services/surveillance.py` score temperature, SpO2, pouls et respiration sans
+lire le chat. Quatre zones de deux places, registre de co-presence, et
+historique des dix dernieres minutes. Scenarios : nominal, fausse alerte,
+contamination, degradation lente.
+
 ## Securite du prototype
 
 - Authentification JWT, mots de passe haches Argon2 et separation

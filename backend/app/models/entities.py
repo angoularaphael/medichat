@@ -129,6 +129,50 @@ class DecisionLog(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class WatchSubject(Base):
+    __tablename__ = "watch_subjects"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    code: Mapped[str] = mapped_column(String(32), unique=True, index=True)
+    full_name: Mapped[str] = mapped_column(String(128))
+    temperature_c: Mapped[float] = mapped_column(Float, default=36.8)
+    spo2: Mapped[float] = mapped_column(Float, default=98)
+    pulse: Mapped[float] = mapped_column(Float, default=74)
+    respiration: Mapped[float] = mapped_column(Float, default=15)
+    score: Mapped[int] = mapped_column(Integer, default=0)
+    level: Mapped[str] = mapped_column(String(16), default="routine")
+    zone_code: Mapped[str | None] = mapped_column(String(8), nullable=True)
+    zone_since: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    clear_streak: Mapped[int] = mapped_column(Integer, default=0)
+    last_clear_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    waiting_place: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
+class VitalSample(Base):
+    __tablename__ = "vital_samples"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    subject_code: Mapped[str] = mapped_column(String(32), index=True)
+    recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    temperature_c: Mapped[float | None] = mapped_column(Float, nullable=True)
+    spo2: Mapped[float | None] = mapped_column(Float, nullable=True)
+    pulse: Mapped[float | None] = mapped_column(Float, nullable=True)
+    respiration: Mapped[float | None] = mapped_column(Float, nullable=True)
+    score: Mapped[int] = mapped_column(Integer, default=0)
+    level: Mapped[str] = mapped_column(String(16), default="routine")
+
+
+class ZoneContact(Base):
+    __tablename__ = "zone_contacts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    zone_code: Mapped[str] = mapped_column(String(8), index=True)
+    subject_a: Mapped[str] = mapped_column(String(32))
+    subject_b: Mapped[str] = mapped_column(String(32))
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
 class CrisisState(Base):
     __tablename__ = "crisis_state"
 
@@ -137,6 +181,7 @@ class CrisisState(Base):
     sick_ratio: Mapped[float] = mapped_column(Float, default=0.0)
     rationing_active: Mapped[bool] = mapped_column(Boolean, default=False)
     autonomy_snapshot_before: Mapped[dict | None] = mapped_column(FlexibleJSON, nullable=True)
+    watch_scenario: Mapped[str] = mapped_column(String(32), default="nominal")
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )

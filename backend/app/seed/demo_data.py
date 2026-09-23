@@ -10,7 +10,7 @@ from app.models.entities import (
     StockMovement,
     User,
 )
-from app.services import auth, crisis, plants, bacteria
+from app.services import auth, bacteria, crisis, plants, surveillance
 
 
 DEMO_USERS = [
@@ -150,6 +150,9 @@ def seed_formulary(db: Session) -> dict[str, Drug]:
 def run_seed(db: Session) -> None:
     if db.query(CrewMember).count() > 0:
         _sync_demo_invariants(db)
+        surveillance.ensure_subjects(db)
+        if db.query(surveillance.VitalSample).count() == 0:
+            surveillance.run_scenario(db, "nominal")
         db.commit()
         return
 
@@ -180,6 +183,8 @@ def run_seed(db: Session) -> None:
     _seed_users(db)
     plants.seed_plants(db)
     bacteria.seed_cultures(db)
+    surveillance.ensure_subjects(db)
+    surveillance.run_scenario(db, "nominal")
     db.commit()
 
 

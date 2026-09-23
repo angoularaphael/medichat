@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.models.entities import CrewMember, CrisisState, HealthStatus
-from app.services import autonomy, journal, triage
+from app.services import autonomy, journal, surveillance, triage
 
 
 def get_or_create_crisis(db: Session) -> CrisisState:
@@ -38,6 +38,7 @@ def trigger_crisis(db: Session, sick_ratio: float | None = None) -> dict:
     db.commit()
 
     triage.update_triage_scores(db)
+    surveillance.run_scenario(db, "contamination")
     sick_count = sum(1 for c in crew if c.health_status == HealthStatus.sick)
 
     journal.log_decision(
@@ -87,3 +88,4 @@ def reset_crew_health(db: Session) -> None:
     crisis.sick_ratio = 0.0
     crisis.autonomy_snapshot_before = None
     db.commit()
+    surveillance.reset_watch(db)

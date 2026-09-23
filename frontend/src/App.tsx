@@ -8,6 +8,7 @@ import DashboardPage from "./pages/DashboardPage";
 import JournalPage from "./pages/JournalPage";
 import LoginPage from "./pages/LoginPage";
 import ProfilePage from "./pages/ProfilePage";
+import SurveillancePage from "./pages/SurveillancePage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -44,6 +45,7 @@ export default function App() {
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/consultation" element={<ConsultationPage />} />
               <Route path="/cultures" element={<CulturesPage />} />
+              <Route path="/surveillance" element={<SurveillancePage />} />
               <Route path="/journal" element={<JournalPage />} />
               <Route path="/profil" element={<ProfilePage />} />
               <Route path="/profil/:code" element={<ProfilePage />} />

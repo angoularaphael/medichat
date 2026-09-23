@@ -40,6 +40,7 @@ from app.services import (
     ollama_client,
     plants,
     rules_engine,
+    surveillance,
     triage,
 )
 from app.services.symptom_catalog import ISOLATION_CASES_FR, NON_ISOLATION_EXAMPLES_FR
@@ -430,6 +431,22 @@ def get_autonomy(db: Session = Depends(get_db)):
 @router.get("/triage", response_model=list[TriageEntry])
 def get_triage(db: Session = Depends(get_db)):
     return [TriageEntry(**row) for row in triage.list_triage(db)]
+
+
+@router.get("/surveillance")
+def get_surveillance(db: Session = Depends(get_db)):
+    return surveillance.snapshot(db)
+
+
+@router.post("/surveillance/scenario/{name}")
+def run_surveillance_scenario(
+    name: str,
+    db: Annotated[Session, Depends(get_db)],
+    _admin: Annotated[User, Depends(require_admin)],
+):
+    if name not in {"nominal", "false-alarm", "contamination", "slow-burn"}:
+        raise HTTPException(404, "Scenario inconnu")
+    return surveillance.run_scenario(db, name)
 
 
 @router.post("/crisis/trigger", response_model=CrisisTriggerResponse)
