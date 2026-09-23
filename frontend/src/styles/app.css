@@ -2101,6 +2101,39 @@ button:disabled {
   font-size: 12px;
 }
 
+.resilience-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.resilience-strip span,
+.finding-list button {
+  min-height: 44px;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+}
+
+.service-ok,
+.service-down {
+  border: 1px solid var(--line);
+}
+
+.service-ok {
+  color: #9be7c4;
+}
+
+.service-down {
+  color: var(--warning);
+}
+
+.finding-list button {
+  width: fit-content;
+  margin-top: 6px;
+}
+
 .finding-list {
   margin: 0;
   padding: 0;

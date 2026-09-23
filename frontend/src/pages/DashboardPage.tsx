@@ -34,6 +34,7 @@ export default function DashboardPage() {
   const triage = useQuery({ queryKey: ["triage"], queryFn: api.triage });
   const drugs = useQuery({ queryKey: ["drugs"], queryFn: api.drugs });
   const plants = useQuery({ queryKey: ["plants"], queryFn: api.plants });
+  const status = useQuery({ queryKey: ["system-status"], queryFn: api.systemStatus, refetchInterval: 15000 });
 
   const refreshMission = () => queryClient.invalidateQueries();
 
@@ -54,7 +55,22 @@ export default function DashboardPage() {
         <div>
           <span className="eyebrow">Vue mission / Temps réel</span>
           <h1>Centre de commande médical</h1>
-          <p>Lien Terre possible mais lent et parfois coupe. EIR decide a bord avec les stocks et les cultures.</p>
+          <p>
+            EIR est le pilier sante du vaisseau Yggdrasil. Il reste autonome si le lien Terre coupe,
+            et echange avec MIMIR, le projet DeepTech, via MQTT.
+          </p>
+        </div>
+        <div className="resilience-strip" aria-label="Etat des services locaux">
+          {[
+            ["API", status.data?.api],
+            ["Base", status.data?.database],
+            ["MQTT", status.data?.mqtt],
+            ["Ollama", status.data?.ollama],
+          ].map(([label, ok]) => (
+            <span key={String(label)} className={ok ? "service-ok" : "service-down"}>
+              {label}: {ok ? "en ligne" : "hors ligne"}
+            </span>
+          ))}
         </div>
         <div className={`mission-state ${autonomy.data?.crisis_active ? "alert" : ""}`}>
           <span />

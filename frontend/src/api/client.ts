@@ -112,6 +112,7 @@ export type CareEvaluation = {
     protocol: string;
   } | null;
   symptom_items?: SymptomCareItem[];
+  needs_clarification?: boolean;
   understanding?: {
     care_crew_code: string;
     care_crew_name?: string | null;
@@ -276,6 +277,15 @@ export const api = {
   forceStockZero: (code: string) =>
     request("/api/demo/force-stock-zero/" + code, { method: "POST" }),
   forceAllStockZero: () => request("/api/demo/force-all-stock-zero", { method: "POST" }),
+  systemStatus: () =>
+    request<{
+      api: boolean;
+      database: boolean;
+      mqtt: boolean;
+      ollama: boolean;
+      decision_mode: string;
+      linked_project: { name: string; pillar: string; role: string };
+    }>("/api/system/status"),
   isolationGuide: () =>
     request<{
       isolation_cases: { title: string; examples: string[] }[];

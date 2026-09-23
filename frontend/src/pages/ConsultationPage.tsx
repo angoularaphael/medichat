@@ -44,7 +44,7 @@ export default function ConsultationPage() {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<ChatLine[]>([]);
   const [evaluation, setEvaluation] = useState<CareEvaluation | null>(null);
-  const [confirmed, setConfirmed] = useState(false);
+  const [confirmedCodes, setConfirmedCodes] = useState<string[]>([]);
   const [plantHarvested, setPlantHarvested] = useState(false);
   const threadEnd = useRef<HTMLDivElement>(null);
   const bootstrapped = useRef(false);
@@ -115,7 +115,7 @@ export default function ConsultationPage() {
         },
       ]);
       setEvaluation(response.evaluation);
-      setConfirmed(false);
+      setConfirmedCodes([]);
       setPlantHarvested(false);
       await queryClient.invalidateQueries({ queryKey: ["journal"] });
       await queryClient.invalidateQueries({ queryKey: ["conversations"] });
@@ -138,14 +138,13 @@ export default function ConsultationPage() {
   });
 
   const confirmation = useMutation({
-    mutationFn: async () => {
-      if (!evaluation?.recommendation) return;
-      const item = evaluation.recommendation;
+    mutationFn: async (item: { drug_code: string; dose_mg: number }) => {
       const target = evaluation?.understanding?.care_crew_code ?? selectedCrew;
       await api.confirm(target, item.drug_code, item.dose_mg);
+      return item.drug_code;
     },
-    onSuccess: async () => {
-      setConfirmed(true);
+    onSuccess: async (drugCode) => {
+      if (drugCode) setConfirmedCodes((current) => [...current, drugCode]);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["autonomy"] }),
         queryClient.invalidateQueries({ queryKey: ["drugs"] }),
@@ -160,7 +159,7 @@ export default function ConsultationPage() {
     localStorage.setItem(CONV_KEY, row.id);
     setMessages([]);
     setEvaluation(null);
-    setConfirmed(false);
+    setConfirmedCodes([]);
     setPlantHarvested(false);
     await queryClient.invalidateQueries({ queryKey: ["conversations"] });
   }
@@ -182,6 +181,7 @@ export default function ConsultationPage() {
     ]);
     setMessage("");
     setEvaluation(null);
+    setConfirmedCodes([]);
     chat.mutate(text);
   }
 
@@ -369,6 +369,25 @@ export default function ConsultationPage() {
                               ? `${item.recommendation.drug_name} ${item.recommendation.dose_mg} mg`
                               : item.non_drug_protocol || item.plant_recommendation?.protocol || "Surveillance"}
                           </span>
+                          {item.recommendation && (
+                            <button
+                              type="button"
+                              disabled={
+                                confirmation.isPending ||
+                                confirmedCodes.includes(item.recommendation.drug_code)
+                              }
+                              onClick={() =>
+                                confirmation.mutate({
+                                  drug_code: item.recommendation!.drug_code,
+                                  dose_mg: item.recommendation!.dose_mg,
+                                })
+                              }
+                            >
+                              {confirmedCodes.includes(item.recommendation.drug_code)
+                                ? "Prise enregistree"
+                                : "Confirmer cette prise"}
+                            </button>
+                          )}
                         </li>
                       ))}
                     </ul>
@@ -394,12 +413,24 @@ export default function ConsultationPage() {
                     </div>
                     <p className="rationale">{evaluation.recommendation.rationale}</p>
                     <button
-                      className={confirmed ? "confirmed" : ""}
+                      className={confirmedCodes.includes(evaluation.recommendation.drug_code) ? "confirmed" : ""}
                       type="button"
-                      disabled={confirmation.isPending || confirmed}
-                      onClick={() => confirmation.mutate()}
+                      disabled={
+                        confirmation.isPending ||
+                        confirmedCodes.includes(evaluation.recommendation.drug_code)
+                      }
+                      onClick={() =>
+                        confirmation.mutate({
+                          drug_code: evaluation.recommendation!.drug_code,
+                          dose_mg: evaluation.recommendation!.dose_mg,
+                        })
+                      }
                     >
-                      {confirmed ? <><Check size={18} /> Prise enregistrée</> : "Confirmer la prise"}
+                      {confirmedCodes.includes(evaluation.recommendation.drug_code) ? (
+                        <><Check size={18} /> Prise enregistrée</>
+                      ) : (
+                        "Confirmer la prise"
+                      )}
                     </button>
                   </div>
                 )}

@@ -1,7 +1,11 @@
 from typing import Annotated
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import text
 from sqlalchemy.orm import Session
+
+from app.config import settings
 
 from app.api.deps import get_current_user, require_admin
 from app.db.session import get_db
@@ -51,6 +55,35 @@ def _assert_profile_access(user: User, crew_member_code: str) -> None:
 @router.get("/health")
 def health():
     return {"status": "ok", "service": "eir-api"}
+
+
+@router.get("/system/status")
+def system_status(db: Annotated[Session, Depends(get_db)]):
+    database_ok = True
+    try:
+        db.execute(text("SELECT 1"))
+    except Exception:
+        database_ok = False
+    ollama_ok = False
+    try:
+        response = httpx.get(f"{settings.ollama_base_url.rstrip('/')}/api/tags", timeout=1.5)
+        ollama_ok = response.status_code == 200
+    except Exception:
+        ollama_ok = False
+    return {
+        "api": True,
+        "database": database_ok,
+        "mqtt": mqtt_service.is_connected(),
+        "ollama": ollama_ok,
+        "decision_mode": "rules+ollama" if ollama_ok else "rules-offline",
+        "linked_project": {
+            "name": "MIMIR",
+            "pillar": "DeepTech",
+            "role": "Bus numerique et securite du vaisseau Yggdrasil",
+            "listens": "yggdrasil/mimir/security/infirmary",
+            "publishes": ["yggdrasil/eir/alert/crisis", "yggdrasil/eir/stock/low"],
+        },
+    }
 
 
 def _crew_payload(member: CrewMember, face_counts: dict[str, int] | None = None) -> dict:

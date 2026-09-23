@@ -2,6 +2,12 @@
 
 Pharmacie embarquee **EIR** (Workshop EPSI Horizon 2080, pilier HealthTech). Depot code : [github.com/angoularaphael/medichat](https://github.com/angoularaphael/medichat).
 
+EIR est le **pilier 1 HumanTech / HealthTech** du vaisseau Yggdrasil. MIMIR, le
+projet DeepTech, reste le systeme nerveux numerique : EIR lui envoie les crises
+et les stocks critiques, et recoit ses alertes de securite infirmerie par MQTT.
+Les deux projets fonctionnent ensemble, mais EIR continue seul si MIMIR ou la
+Terre sont coupes.
+
 Prototype d **aide a la decision** — pas un dispositif medical certifie. Le
 moteur de regles deterministe decide a partir du profil, des interactions et de
 la base locale. Ollama peut enrichir l extraction des symptomes et reformuler la

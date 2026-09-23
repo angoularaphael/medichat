@@ -58,6 +58,10 @@ def start_mqtt_background() -> None:
             logger.warning("MQTT unavailable: %s", exc)
 
 
+def is_connected() -> bool:
+    return _client is not None and _client.is_connected()
+
+
 def publish(topic: str, payload: dict) -> bool:
     global _client
     if _client is None:

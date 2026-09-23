@@ -92,6 +92,11 @@ SYMPTOMS_CLARIFY = (
     "Decris plus precisement ce que tu as (mal de tete, ventre, fievre, sommeil, etc.). "
     "Sans ca je ne peux pas proposer un medicament."
 )
+PAIN_CLARIFY = (
+    "Tu as mal, mais l'endroit n'est pas assez precis. "
+    "Dis-moi ou (tete, dos, ventre, poitrine), l'intensite sur 10 et depuis quand. "
+    "Aucun medicament n'est propose tant que ces trois points ne sont pas clairs."
+)
 SLEEP_PROTOCOL = (
     "Pour le sommeil on ne part pas sur un analgesique par defaut. "
     "Lumiere basse, pas d'ecrans, routine calme. "
@@ -397,6 +402,17 @@ def evaluate_care(
         )
 
     indication = _symptom_indication(symptoms)
+    if {item.lower().strip() for item in symptoms} <= {"douleur"}:
+        rules.append("needs_clarification")
+        return CareEvaluationResult(
+            excluded_options=[],
+            recommendation=None,
+            escalate_to_physician=False,
+            urgency="routine",
+            rules_fired=rules,
+            non_drug_protocol=PAIN_CLARIFY,
+            needs_clarification=True,
+        )
     if indication == "unspecified":
         rules.append("indication_unspecified")
         return CareEvaluationResult(

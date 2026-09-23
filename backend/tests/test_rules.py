@@ -1,3 +1,14 @@
+def test_generic_pain_asks_before_prescribing(client):
+    response = client.post(
+        "/api/care/evaluate",
+        json={"crew_member_code": "elsa", "symptoms": ["douleur"]},
+    )
+    data = response.json()
+    assert data["needs_clarification"] is True
+    assert data["recommendation"] is None
+    assert "intensite" in data["non_drug_protocol"]
+
+
 def test_t01_elisa_headache(client):
     r = client.post(
         "/api/care/evaluate",

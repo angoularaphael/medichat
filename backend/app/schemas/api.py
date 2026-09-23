@@ -56,6 +56,7 @@ class CareEvaluationResult(BaseModel):
     plant_recommendation: PlantRecommendation | None = None
     symptom_items: list[SymptomCareItem] = Field(default_factory=list)
     understanding: MessageUnderstandingOut | None = None
+    needs_clarification: bool = False
 
 
 class CareEvaluateRequest(BaseModel):
