@@ -47,16 +47,45 @@ class CareConfirmRequest(BaseModel):
 
 class ChatMessageRequest(BaseModel):
     session_id: str = "default"
+    conversation_id: str | None = None
     crew_member_code: str
     message: str
 
 
 class ChatMessageResponse(BaseModel):
     session_id: str
+    conversation_id: str | None = None
     role: str
     content: str
     evaluation: CareEvaluationResult | None = None
     llm_mode: str = "template"
+
+
+class FaceLoginRequest(BaseModel):
+    descriptor: list[float]
+
+
+class FaceEnrollRequest(BaseModel):
+    crew_member_code: str
+    descriptors: list[list[float]] = Field(min_length=1, max_length=8)
+
+
+class FaceDescriptorsBody(BaseModel):
+    descriptors: list[list[float]] = Field(min_length=1, max_length=8)
+
+
+class ConversationCreate(BaseModel):
+    crew_member_code: str
+
+
+class ConversationOut(BaseModel):
+    id: str
+    crew_member_code: str
+    created_by: str
+    title: str
+    status: str
+    created_at: str | None = None
+    updated_at: str | None = None
 
 
 class LoginRequest(BaseModel):

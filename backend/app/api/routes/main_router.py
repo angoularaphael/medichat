@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, require_admin
 from app.db.session import get_db
-from app.models.entities import CrewMember, Drug, StockMovement, User
+from app.models.entities import ChatMessage, CrewMember, Drug, StockMovement, User
 from app.schemas.api import (
     AutonomyCompareResponse,
     AutonomyDrugRow,
@@ -15,15 +15,28 @@ from app.schemas.api import (
     CareEvaluationResult,
     ChatMessageRequest,
     ChatMessageResponse,
+    ConversationCreate,
     CrisisTriggerResponse,
     DecisionLogEntry,
+    FaceDescriptorsBody,
     ProfileUpdate,
     SecurityAlertOut,
     TriageEntry,
 )
-from app.services import autonomy, bacteria, crisis, journal, mqtt_service, ollama_client, plants, rules_engine, triage
 from app.seed import demo_data
-from app.models.entities import ChatMessage
+from app.services import (
+    autonomy,
+    bacteria,
+    conversations,
+    crisis,
+    face_id,
+    journal,
+    mqtt_service,
+    ollama_client,
+    plants,
+    rules_engine,
+    triage,
+)
 
 router = APIRouter(prefix="/api")
 
@@ -38,7 +51,8 @@ def health():
     return {"status": "ok", "service": "eir-api"}
 
 
-def _crew_payload(member: CrewMember) -> dict:
+def _crew_payload(member: CrewMember, face_counts: dict[str, int] | None = None) -> dict:
+    counts = face_counts or {}
     return {
         "code": member.code,
         "full_name": member.full_name,
@@ -46,13 +60,16 @@ def _crew_payload(member: CrewMember) -> dict:
         "allergies": member.allergies or [],
         "health_status": member.health_status.value,
         "avatar_data": member.avatar_data,
+        "face_enrolled": counts.get(member.code, 0) > 0,
+        "face_samples": counts.get(member.code, 0),
     }
 
 
 @router.get("/crew")
 def list_crew(db: Session = Depends(get_db)):
     members = db.query(CrewMember).order_by(CrewMember.id).all()
-    return [_crew_payload(member) for member in members]
+    counts = face_id.list_enrollments(db)
+    return [_crew_payload(member, counts) for member in members]
 
 
 @router.get("/crew/{code}")
@@ -65,7 +82,7 @@ def get_crew_member(
     member = db.query(CrewMember).filter(CrewMember.code == code).first()
     if not member:
         raise HTTPException(404, "Profil equipage inconnu")
-    return _crew_payload(member)
+    return _crew_payload(member, face_id.list_enrollments(db))
 
 
 @router.patch("/crew/{code}/profile")
@@ -104,7 +121,7 @@ def update_crew_profile(
         crew_member_id=member.id,
         payload={"allergies": member.allergies},
     )
-    return _crew_payload(member)
+    return _crew_payload(member, face_id.list_enrollments(db))
 
 
 @router.get("/drugs")
@@ -180,6 +197,95 @@ def care_confirm(
     return {"ok": True, "stock_remaining": drug.stock_units}
 
 
+@router.post("/crew/{code}/face")
+def enroll_face(
+    code: str,
+    body: FaceDescriptorsBody,
+    db: Annotated[Session, Depends(get_db)],
+    admin: Annotated[User, Depends(require_admin)],
+):
+    member = db.query(CrewMember).filter(CrewMember.code == code).first()
+    if not member:
+        raise HTTPException(404, "Profil equipage inconnu")
+    try:
+        count = face_id.replace_enrollments(db, code, body.descriptors, admin.username)
+    except ValueError as error:
+        raise HTTPException(400, str(error)) from error
+    journal.log_decision(
+        db,
+        action="face_enroll",
+        summary=f"Reconnaissance faciale enregistree pour {member.full_name}",
+        crew_member_id=member.id,
+        payload={"samples": count, "enrolled_by": admin.username},
+    )
+    return {"ok": True, "samples": count, "crew_member_code": code}
+
+
+@router.delete("/crew/{code}/face")
+def clear_face(
+    code: str,
+    db: Annotated[Session, Depends(get_db)],
+    admin: Annotated[User, Depends(require_admin)],
+):
+    member = db.query(CrewMember).filter(CrewMember.code == code).first()
+    if not member:
+        raise HTTPException(404, "Profil equipage inconnu")
+    face_id.clear_enrollments(db, code)
+    journal.log_decision(
+        db,
+        action="face_clear",
+        summary=f"Reconnaissance faciale effacee pour {member.full_name}",
+        crew_member_id=member.id,
+        payload={"cleared_by": admin.username},
+    )
+    return {"ok": True, "crew_member_code": code}
+
+
+@router.get("/conversations")
+def list_conversations(
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(get_current_user)],
+    status: str | None = "open",
+):
+    rows = conversations.list_conversations(db, user.username, status)
+    return [conversations.serialize_conversation(row) for row in rows]
+
+
+@router.post("/conversations")
+def create_conversation(
+    body: ConversationCreate,
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(get_current_user)],
+):
+    _assert_profile_access(user, body.crew_member_code)
+    row = conversations.create_conversation(db, user.username, body.crew_member_code)
+    return conversations.serialize_conversation(row)
+
+
+@router.get("/conversations/{conversation_id}/messages")
+def conversation_messages(
+    conversation_id: str,
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(get_current_user)],
+):
+    row = conversations.get_conversation(db, conversation_id, user.username)
+    if not row:
+        raise HTTPException(404, "Conversation inconnue")
+    return [conversations.serialize_message(item) for item in conversations.list_messages(db, conversation_id)]
+
+
+@router.post("/conversations/{conversation_id}/archive")
+def archive_conversation(
+    conversation_id: str,
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(get_current_user)],
+):
+    row = conversations.archive_conversation(db, conversation_id, user.username)
+    if not row:
+        raise HTTPException(404, "Conversation inconnue")
+    return conversations.serialize_conversation(row)
+
+
 @router.post("/chat/message", response_model=ChatMessageResponse)
 async def chat_message(
     body: ChatMessageRequest,
@@ -187,27 +293,52 @@ async def chat_message(
     user: Annotated[User, Depends(get_current_user)],
 ):
     _assert_profile_access(user, body.crew_member_code)
-    symptoms = ollama_client.extract_symptoms(body.message)
+    if body.conversation_id:
+        conversation = conversations.get_conversation(db, body.conversation_id, user.username)
+        if not conversation:
+            raise HTTPException(404, "Conversation inconnue")
+        if conversation.status != "open":
+            raise HTTPException(400, "Conversation archivee")
+    else:
+        conversation = conversations.create_conversation(db, user.username, body.crew_member_code)
+
+    history = conversations.history_text(db, conversation.id)
+    combined = f"{history}\n{body.message}" if history else body.message
+    symptoms = ollama_client.extract_symptoms(combined)
     evaluation = rules_engine.evaluate_care(
         db,
         crew_member_code=body.crew_member_code,
         symptoms=symptoms,
     )
-    content, mode = await ollama_client.reformulate_with_ollama(body.message, evaluation)
+    content, mode = await ollama_client.reformulate_with_ollama(
+        body.message,
+        evaluation,
+        history,
+    )
 
-    db.add(ChatMessage(session_id=body.session_id, role="user", content=body.message))
     db.add(
         ChatMessage(
-            session_id=body.session_id,
+            session_id=conversation.id,
+            conversation_id=conversation.id,
+            role="user",
+            content=body.message,
+        )
+    )
+    db.add(
+        ChatMessage(
+            session_id=conversation.id,
+            conversation_id=conversation.id,
             role="assistant",
             content=content,
             meta={"llm_mode": mode, "evaluation": evaluation.model_dump()},
         )
     )
+    conversations.touch_title(db, conversation, body.message)
     db.commit()
 
     return ChatMessageResponse(
-        session_id=body.session_id,
+        session_id=conversation.id,
+        conversation_id=conversation.id,
         role="assistant",
         content=content,
         evaluation=evaluation,

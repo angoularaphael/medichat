@@ -2,10 +2,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   AlertCircle,
+  Archive,
   Check,
   ChevronRight,
   HeartPulse,
   Leaf,
+  MessageSquarePlus,
   Send,
   ShieldCheck,
   Sparkles,
@@ -30,26 +32,78 @@ const suggestions = [
   "J'ai la diarrhée et le ventre liquide",
   "Je n'arrive plus à aller à la selle",
 ];
+const CONV_KEY = "eir_conversation_id";
 
 export default function ConsultationPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const crew = useQuery({ queryKey: ["crew"], queryFn: api.crew });
   const [selectedCrew, setSelectedCrew] = useState(user?.crew_member_code ?? "elisa");
+  const [conversationId, setConversationId] = useState<string | null>(() => localStorage.getItem(CONV_KEY));
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<ChatLine[]>([]);
   const [evaluation, setEvaluation] = useState<CareEvaluation | null>(null);
   const [confirmed, setConfirmed] = useState(false);
   const [plantHarvested, setPlantHarvested] = useState(false);
   const threadEnd = useRef<HTMLDivElement>(null);
+  const bootstrapped = useRef(false);
+
+  const conversationsQuery = useQuery({
+    queryKey: ["conversations"],
+    queryFn: () => api.conversations("open"),
+  });
+
+  const historyQuery = useQuery({
+    queryKey: ["conversation-messages", conversationId],
+    queryFn: () => api.conversationMessages(conversationId as string),
+    enabled: Boolean(conversationId),
+  });
 
   useEffect(() => {
     threadEnd.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  useEffect(() => {
+    if (!conversationsQuery.data || bootstrapped.current) return;
+    bootstrapped.current = true;
+    const open = conversationsQuery.data.filter((row) => row.status === "open");
+    const stored = localStorage.getItem(CONV_KEY);
+    const found =
+      open.find((row) => row.id === stored && row.crew_member_code === selectedCrew) ||
+      open.find((row) => row.crew_member_code === selectedCrew);
+    if (found) {
+      setConversationId(found.id);
+      localStorage.setItem(CONV_KEY, found.id);
+      return;
+    }
+    api.createConversation(selectedCrew).then((row) => {
+      setConversationId(row.id);
+      localStorage.setItem(CONV_KEY, row.id);
+      queryClient.invalidateQueries({ queryKey: ["conversations"] });
+    });
+  }, [conversationsQuery.data, selectedCrew, queryClient]);
+
+  useEffect(() => {
+    if (!historyQuery.data) return;
+    setMessages(
+      historyQuery.data.map((row) => ({
+        id: String(row.id),
+        role: row.role,
+        content: row.content,
+        mode: row.meta?.llm_mode,
+      })),
+    );
+    const last = [...historyQuery.data].reverse().find((row) => row.role === "assistant" && row.meta?.evaluation);
+    setEvaluation(last?.meta?.evaluation ?? null);
+  }, [historyQuery.data]);
+
   const chat = useMutation({
-    mutationFn: (text: string) => api.chat(selectedCrew, text, `${user?.username}-${Date.now()}`),
+    mutationFn: (text: string) => api.chat(selectedCrew, text, conversationId || undefined),
     onSuccess: async (response) => {
+      if (response.conversation_id) {
+        setConversationId(response.conversation_id);
+        localStorage.setItem(CONV_KEY, response.conversation_id);
+      }
       setMessages((current) => [
         ...current,
         {
@@ -63,6 +117,7 @@ export default function ConsultationPage() {
       setConfirmed(false);
       setPlantHarvested(false);
       await queryClient.invalidateQueries({ queryKey: ["journal"] });
+      await queryClient.invalidateQueries({ queryKey: ["conversations"] });
     },
   });
 
@@ -97,6 +152,24 @@ export default function ConsultationPage() {
     },
   });
 
+  async function startNewChat() {
+    const row = await api.createConversation(selectedCrew);
+    setConversationId(row.id);
+    localStorage.setItem(CONV_KEY, row.id);
+    setMessages([]);
+    setEvaluation(null);
+    setConfirmed(false);
+    setPlantHarvested(false);
+    await queryClient.invalidateQueries({ queryKey: ["conversations"] });
+  }
+
+  async function closeChat() {
+    if (conversationId) {
+      await api.archiveConversation(conversationId);
+    }
+    await startNewChat();
+  }
+
   function submit(event?: FormEvent, suggested?: string) {
     event?.preventDefault();
     const text = (suggested ?? message).trim();
@@ -111,6 +184,8 @@ export default function ConsultationPage() {
   }
 
   const selectedMember = crew.data?.find((member) => member.code === selectedCrew);
+  const currentTitle =
+    conversationsQuery.data?.find((row) => row.id === conversationId)?.title || "Nouvelle conversation";
 
   return (
     <div className="consultation-page">
@@ -125,6 +200,17 @@ export default function ConsultationPage() {
 
       <div className="consultation-grid">
         <section className="chat-panel glass-panel">
+          <div className="chat-toolbar">
+            <strong>{currentTitle}</strong>
+            <div>
+              <button type="button" onClick={startNewChat}>
+                <MessageSquarePlus size={16} /> Nouveau chat
+              </button>
+              <button type="button" onClick={closeChat}>
+                <Archive size={16} /> Fermer
+              </button>
+            </div>
+          </div>
           <div className="patient-strip">
             <div className="patient-icon"><UserRound size={20} /></div>
             <div>
@@ -133,7 +219,12 @@ export default function ConsultationPage() {
                 <select
                   aria-label="Profil équipage"
                   value={selectedCrew}
-                  onChange={(event) => setSelectedCrew(event.target.value)}
+                  onChange={(event) => {
+                    bootstrapped.current = false;
+                    setSelectedCrew(event.target.value);
+                    setMessages([]);
+                    setEvaluation(null);
+                  }}
                 >
                   {crew.data?.map((member) => (
                     <option value={member.code} key={member.code}>{member.full_name}</option>

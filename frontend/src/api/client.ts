@@ -2,9 +2,15 @@ const base = import.meta.env.VITE_API_URL || "";
 const TOKEN_KEY = "eir_access_token";
 
 export const session = {
-  getToken: () => sessionStorage.getItem(TOKEN_KEY),
-  setToken: (token: string) => sessionStorage.setItem(TOKEN_KEY, token),
-  clear: () => sessionStorage.removeItem(TOKEN_KEY),
+  getToken: () => localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY),
+  setToken: (token: string) => {
+    localStorage.setItem(TOKEN_KEY, token);
+    sessionStorage.removeItem(TOKEN_KEY);
+  },
+  clear: () => {
+    localStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(TOKEN_KEY);
+  },
 };
 
 async function request<T>(path: string, init?: RequestInit, authenticated = true): Promise<T> {
@@ -59,6 +65,8 @@ export type CrewMember = {
   allergies: string[];
   health_status: string;
   avatar_data?: string | null;
+  face_enrolled?: boolean;
+  face_samples?: number;
 };
 
 export type Drug = {
@@ -119,8 +127,29 @@ export type BacteriaCulture = {
 
 export type ChatResponse = {
   content: string;
+  conversation_id?: string | null;
+  session_id?: string;
   evaluation: CareEvaluation | null;
   llm_mode: string;
+};
+
+export type Conversation = {
+  id: string;
+  crew_member_code: string;
+  created_by: string;
+  title: string;
+  status: string;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
+
+export type ConversationMessage = {
+  id: number;
+  conversation_id: string | null;
+  role: "user" | "assistant";
+  content: string;
+  meta?: { llm_mode?: string; evaluation?: CareEvaluation } | null;
+  created_at?: string | null;
 };
 
 export type TriageEntry = {
@@ -163,7 +192,34 @@ export const api = {
       },
       false
     ),
+  loginFace: (descriptor: number[]) =>
+    request<LoginResponse>(
+      "/api/auth/face",
+      {
+        method: "POST",
+        body: JSON.stringify({ descriptor }),
+      },
+      false
+    ),
   me: () => request<AuthUser>("/api/auth/me"),
+  enrollFace: (code: string, descriptors: number[][]) =>
+    request<{ ok: boolean; samples: number }>(`/api/crew/${code}/face`, {
+      method: "POST",
+      body: JSON.stringify({ descriptors }),
+    }),
+  clearFace: (code: string) =>
+    request<{ ok: boolean }>(`/api/crew/${code}/face`, { method: "DELETE" }),
+  conversations: (status = "open") =>
+    request<Conversation[]>(`/api/conversations?status=${encodeURIComponent(status)}`),
+  createConversation: (crew_member_code: string) =>
+    request<Conversation>("/api/conversations", {
+      method: "POST",
+      body: JSON.stringify({ crew_member_code }),
+    }),
+  conversationMessages: (id: string) =>
+    request<ConversationMessage[]>(`/api/conversations/${id}/messages`),
+  archiveConversation: (id: string) =>
+    request<Conversation>(`/api/conversations/${id}/archive`, { method: "POST" }),
   crew: () => request<CrewMember[]>("/api/crew"),
   crewMember: (code: string) => request<CrewMember>(`/api/crew/${code}`),
   updateProfile: (code: string, body: { allergies: string[]; avatar_data?: string | null; full_name?: string }) =>
@@ -172,10 +228,15 @@ export const api = {
       body: JSON.stringify(body),
     }),
   drugs: () => request<Drug[]>("/api/drugs"),
-  chat: (crew_member_code: string, message: string, session_id = "default") =>
+  chat: (crew_member_code: string, message: string, conversation_id?: string) =>
     request<ChatResponse>("/api/chat/message", {
       method: "POST",
-      body: JSON.stringify({ crew_member_code, message, session_id }),
+      body: JSON.stringify({
+        crew_member_code,
+        message,
+        conversation_id: conversation_id || undefined,
+        session_id: conversation_id || "default",
+      }),
     }),
   confirm: (crew_member_code: string, drug_code: string, dose_mg: number) =>
     request<{ ok: boolean }>("/api/care/confirm", {

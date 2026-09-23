@@ -51,8 +51,8 @@ export default function CulturesPage() {
           <span className="eyebrow">Bioregeneration / Pharmacie vivante</span>
           <h1>Cultures de bord</h1>
           <p>
-            Serre pour les plantes, cuves pour les souches. Glissez une photo pour la faire tourner.
-            Sans livraison terrestre, ces stocks synthetisent ou testent les traitements a bord.
+            Serre pour les plantes, cuves pour les souches. Les photos sont extrudees en volume 3D.
+            Glissez pour faire tourner. Sans livraison terrestre, ces stocks synthetisent ou testent les traitements a bord.
           </p>
         </div>
       </div>
@@ -140,7 +140,7 @@ function PlantCard({
       transition={{ delay: index * 0.05 }}
     >
       <PlantPortrait code={plant.code} name={plant.name} />
-      <p className="plant-hint">Glisser pour tourner</p>
+      <p className="plant-hint">Modele 3D: glisser pour tourner</p>
       <button className="plant-open" type="button" onClick={onOpen}>
         <span className={`plant-status ${plant.status}`}>{statusLabel[plant.status] ?? plant.status}</span>
         <strong>{plant.name}</strong>

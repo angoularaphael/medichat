@@ -1,4 +1,3 @@
-import json
 import re
 
 import httpx
@@ -10,6 +9,7 @@ from app.schemas.api import CareEvaluationResult
 SYMPTOM_PATTERNS = [
     (re.compile(r"mal de t[êe]te|cephalee|headache", re.I), "mal de tete"),
     (re.compile(r"douleur thoracique|chest pain", re.I), "douleur thoracique"),
+    (re.compile(r"mal au rein|reins?|colique n[eé]phr|flanc", re.I), "mal au rein"),
     (re.compile(r"fi[eè]vre|fever", re.I), "fievre"),
     (re.compile(r"naus[ée]e?|envie de vomir|vomissement", re.I), "nausee"),
     (re.compile(r"diarrh[ée]e|selles liquides|gastro", re.I), "diarrhee"),
@@ -30,6 +30,7 @@ SYMPTOM_PATTERNS = [
     ),
     (re.compile(r"mal de gorge|gorge.*mal|sore throat|angine", re.I), "mal de gorge"),
     (re.compile(r"infection|infecte|plaie|antibiot", re.I), "infection"),
+    (re.compile(r"j[' ]ai mal|mal (au|a la|à la|de)|douleur", re.I), "douleur"),
 ]
 
 
@@ -43,45 +44,50 @@ def extract_symptoms(text: str) -> list[str]:
     return found
 
 
-def template_reply(evaluation: CareEvaluationResult) -> str:
-    parts = ["Analyse EIR (moteur de regles deterministe, decision a bord):"]
-    if evaluation.excluded_options:
-        parts.append("Options ecartees:")
-        for opt in evaluation.excluded_options:
-            parts.append(f"- {opt.drug_code}: {opt.reason_text}")
-    if evaluation.escalate_to_physician:
-        parts.append("Protocole d'urgence embarque. Avis sol non bloquant (latence / coupure).")
-        if evaluation.non_drug_protocol:
-            parts.append(evaluation.non_drug_protocol)
-        return "\n".join(parts)
-    if evaluation.recommendation:
-        r = evaluation.recommendation
-        parts.append(
-            f"Proposition: {r.drug_name} ({r.drug_code}), dose {r.dose_mg} mg. {r.rationale}"
-        )
-    elif evaluation.plant_recommendation:
-        plant = evaluation.plant_recommendation
-        parts.append(f"Relais botanique: {plant.plant_name}. {plant.protocol}")
-    elif evaluation.non_drug_protocol:
-        parts.append(f"Aucun medicament synthetique. {evaluation.non_drug_protocol}")
+def template_reply(evaluation: CareEvaluationResult, user_message: str = "") -> str:
+    felt = " ".join(user_message.split())
+    if felt:
+        opener = f"Ok, j'entends: {felt}."
     else:
-        parts.append("Aucune proposition medicamenteuse. Protocole de surveillance a bord.")
-    return "\n".join(parts)
+        opener = "Ok, je te prends en charge."
+
+    if evaluation.escalate_to_physician:
+        detail = evaluation.non_drug_protocol or ""
+        return f"{opener} La c'est grave: on passe en urgence cabine. {detail}"
+
+    if evaluation.recommendation:
+        rec = evaluation.recommendation
+        return (
+            f"{opener} Avec ton dossier et le stock, je te propose {rec.drug_name} "
+            f"({rec.dose_mg:.0f} mg). {rec.rationale} Dis-moi si ca se calme."
+        )
+    if evaluation.plant_recommendation:
+        plant = evaluation.plant_recommendation
+        return (
+            f"{opener} Plus de flacon adapte, donc on bascule sur {plant.plant_name}. "
+            f"{plant.protocol}"
+        )
+    if evaluation.non_drug_protocol:
+        return f"{opener} {evaluation.non_drug_protocol}"
+    return f"{opener} Je reste avec toi: on surveille, tu me dis si ca bouge."
 
 
 async def reformulate_with_ollama(
     user_message: str,
     evaluation: CareEvaluationResult,
+    history: str = "",
 ) -> tuple[str, str]:
     system = (
-        "Tu es l'interface EIR a bord du vaisseau Yggdrasil. "
-        "Un lien Terre existe mais avec latence et coupures frequentes. "
-        "Reformule UNIQUEMENT la decision JSON fournie. "
+        "Tu es EIR Medichat, collegue de bord. Tu tutoies. "
+        "Tu restes dans le fil de conversation: tu tiens compte de l'historique. "
+        "Tu reformules UNIQUEMENT la decision JSON. "
         "Ne prescris jamais un medicament absent du JSON. "
-        "N'attends jamais un avis medical terrestre pour agir. "
-        "Tu peux dire qu'un message est envoye au sol, mais la decision locale prime. "
-        "Reponses courtes en francais."
+        "Reponds vraiment au mal decrit, de facon humaine et concrete. "
+        "N'invente pas de latence terrestre, de coupure, ni d'isolement "
+        "sauf si le JSON dit urgence critique. "
+        "Francais court, vivant, sans emoji."
     )
+    history_block = f"\nHistorique du fil:\n{history}\n" if history else ""
     payload = {
         "model": settings.ollama_model,
         "stream": False,
@@ -89,7 +95,10 @@ async def reformulate_with_ollama(
             {"role": "system", "content": system},
             {
                 "role": "user",
-                "content": f"Message patient: {user_message}\nDecision JSON:\n{evaluation.model_dump_json()}",
+                "content": (
+                    f"{history_block}Message patient: {user_message}\n"
+                    f"Decision JSON:\n{evaluation.model_dump_json()}"
+                ),
             },
         ],
     }
@@ -101,7 +110,7 @@ async def reformulate_with_ollama(
             data = resp.json()
             content = str(data.get("message", {}).get("content") or "").strip()
             if not content:
-                return template_reply(evaluation), "template"
+                return template_reply(evaluation, user_message), "template"
             return content, "ollama"
     except Exception:
-        return template_reply(evaluation), "template"
+        return template_reply(evaluation, user_message), "template"

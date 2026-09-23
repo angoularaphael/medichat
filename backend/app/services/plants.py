@@ -167,6 +167,8 @@ def find_ready_plant(db: Session, indication: str) -> PlantCulture | None:
     indications = [indication]
     if indication == "fever":
         indications.append("pain_mild")
+    if indication == "pain_renal":
+        indications.append("pain_mild")
     if indication in {"nausea", "motion"}:
         indications.extend(["nausea", "motion"])
     if indication == "diarrhea":

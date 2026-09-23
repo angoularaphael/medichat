@@ -10,9 +10,9 @@ def test_unknown_symptom_does_not_wait_for_earth(client):
         json={"crew_member_code": "elsa", "symptoms": ["douleur testiculaire"]},
     )
     data = r.json()
-    protocol = (data["non_drug_protocol"] or "").lower()
-    assert "bord" in protocol
-    assert "latence" in protocol or "file" in protocol
+    assert data["recommendation"]["drug_code"] == "paracetamol"
+    protocol = (data["non_drug_protocol"] or data["recommendation"]["rationale"] or "").lower()
+    assert "latence" not in protocol
     assert "medecin de bord" not in protocol
 
 

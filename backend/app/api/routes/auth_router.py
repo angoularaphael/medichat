@@ -6,7 +6,8 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user
 from app.db.session import get_db
 from app.models.entities import CrewMember, User
-from app.schemas.api import LoginRequest, TokenResponse, UserOut
+from app.schemas.api import FaceLoginRequest, LoginRequest, TokenResponse, UserOut
+from app.services import face_id
 from app.services.auth import create_access_token, verify_password
 
 
@@ -36,6 +37,23 @@ def login(body: LoginRequest, db: Annotated[Session, Depends(get_db)]):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Identifiant ou mot de passe incorrect",
+        )
+    return TokenResponse(
+        access_token=create_access_token(user.username),
+        user=user_out(user, _member_for(db, user)),
+    )
+
+
+@router.post("/face", response_model=TokenResponse)
+def login_face(body: FaceLoginRequest, db: Annotated[Session, Depends(get_db)]):
+    try:
+        user, score = face_id.match(db, body.descriptor)
+    except ValueError as error:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(error)) from error
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Visage non reconnu. Raphael doit enregistrer la reconnaissance faciale.",
         )
     return TokenResponse(
         access_token=create_access_token(user.username),

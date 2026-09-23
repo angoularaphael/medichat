@@ -72,25 +72,26 @@ def _has_allergy(member: CrewMember, drug: Drug) -> bool:
     return False
 
 
-ONBOARD_WATCH = (
-    "Symptome enregistre a bord. Repos, hydratation et surveillance des constantes. "
-    "Une demande d'avis sol est mise en file, mais la latence et les coupures interdisent d'attendre. "
-    "Si aggravation: protocole d'urgence EIR (isolement, oxygene, monitoring)."
-)
 ONBOARD_EMERGENCY = (
-    "Protocole d'urgence embarque: immobilisation, oxygene, monitoring continu. "
-    "Message sol en file, sans attendre: le lien Terre est lent et peut se couper. "
-    "Decision immediate EIR."
+    "La, on ne joue plus. Immobilisation, oxygene, monitoring en continu. "
+    "C'est le dernier recours: cabine medicale, on t'isole pour te proteger "
+    "et on agit tout de suite."
 )
-ONBOARD_WATCH_24H = (
-    "Repos, hydratation, surveillance a bord. Reevaluation EIR sous 24 h. "
-    "Avis sol demande en arriere-plan, non bloquant."
+LAST_RESORT_WATCH = (
+    "On n'a plus de molecule sure pour ce que tu decris. "
+    "Repos, hydratation, tu surveilles comment ca evolue. "
+    "Si ca s'aggrave vraiment (gene a respirer, douleur dans la poitrine, malaise): "
+    "isolement cabine medicale. C'est le dernier recours, pas la reponse par defaut."
 )
 
 
 def _symptom_indication(symptoms: list[str]) -> str:
     s = " ".join(symptoms).lower()
-    if "headache" in s or "mal de tete" in s or "mal de tête" in s or "cephalee" in s or "mal de dos" in s:
+    if "headache" in s or "mal de tete" in s or "mal de tête" in s or "cephalee" in s:
+        return "pain_mild"
+    if "rein" in s or "flanc" in s or "lombair" in s or "renal" in s:
+        return "pain_renal"
+    if "mal de dos" in s or "lombalgie" in s:
         return "pain_mild"
     if "diarrh" in s or "selles liquides" in s or "gastro" in s:
         return "diarrhea"
@@ -110,19 +111,23 @@ def _symptom_indication(symptoms: list[str]) -> str:
         return "asthma"
     if "congestion" in s or "nez bouche" in s or "sinus" in s:
         return "congestion"
-    return "general"
+    if "mal" in s or "douleur" in s or "souffre" in s:
+        return "pain_mild"
+    return "pain_mild"
 
 
 def _support_text(indication: str) -> str:
     if indication == "diarrhea":
         return (
-            " Hydratation obligatoire (sels de rehydration). Relais alimentaire: riz nature (oryza). "
-            " Ensuite cuve Lactobacillus acidophilus pour refaire la flore, jamais une culture pathogene."
+            " Bois par petites gorgees, sels de rehydration si tu en as. "
+            "Le riz de la serre aide a lier. Ensuite la cuve Lactobacillus pour la flore."
         )
     if indication in {"nausea", "motion"}:
-        return " Petites gorgees, gingembre de bord si disponible, eviter les repas gras."
+        return " Petites gorgees, gingembre de cabine si tu en as, repas leger."
     if indication == "constipation":
-        return " Hydratation et mobilite cabine en complement du laxatif."
+        return " Bois, bouge un peu dans la cabine, et le laxatif si besoin."
+    if indication == "pain_renal":
+        return " Bois bien. J'evite les AINS sur un mal de rein: on reste sur le paracetamol."
     return ""
 
 
@@ -131,8 +136,8 @@ def _plant_fallback(db: Session, indication: str, excluded: list[ExcludedOption]
     if plant:
         rules.append(f"plant_relay_{plant.code}")
         protocol = (
-            f"Stocks synthetiques epuises ou contre-indiques pour cette indication. "
-            f"Relais de bord: recolter {plant.name} ({plant.species}). {plant.notes}"
+            f"Les flacons ne suffisent plus. On bascule sur la serre: "
+            f"{plant.name} ({plant.species}). {plant.notes}"
             f"{_support_text(indication)}"
         )
         return CareEvaluationResult(
@@ -153,9 +158,8 @@ def _plant_fallback(db: Session, indication: str, excluded: list[ExcludedOption]
         return None
     rules.append(f"bacteria_relay_{culture.code}")
     protocol = (
-        f"Stocks synthetiques et plantes insuffisants. Pharmacie vivante: "
-        f"prelever {culture.nom_souche} ({culture.categorie}, {culture.quantite_boites} boites, "
-        f"{culture.temperature_celsius:.0f} C). {culture.notes}"
+        f"Plus de plante prete non plus. Pharmacie vivante: "
+        f"{culture.nom_souche} ({culture.categorie}, {culture.quantite_boites} boites). {culture.notes}"
         f"{_support_text(indication)}"
     )
     return CareEvaluationResult(
@@ -176,7 +180,7 @@ def _plant_fallback(db: Session, indication: str, excluded: list[ExcludedOption]
 def _default_dose(drug: Drug, indication: str, requested_drug_code: str | None, requested_dose_mg: float | None) -> float:
     if requested_dose_mg and requested_drug_code == drug.code:
         return requested_dose_mg
-    if indication in {"pain_mild", "fever"}:
+    if indication in {"pain_mild", "fever", "pain_renal"}:
         return min(drug.dose_max_mg, 500.0)
     return drug.dose_max_mg
 
@@ -184,6 +188,8 @@ def _default_dose(drug: Drug, indication: str, requested_drug_code: str | None, 
 def _candidate_drugs(db: Session, indication: str) -> list[Drug]:
     if indication == "pain_mild":
         codes = ["paracetamol", "ibuprofen", "aspirin"]
+    elif indication == "pain_renal":
+        codes = ["paracetamol"]
     elif indication == "fever":
         codes = ["paracetamol", "ibuprofen"]
     elif indication == "nausea":
@@ -201,7 +207,7 @@ def _candidate_drugs(db: Session, indication: str) -> list[Drug]:
     elif indication == "infection":
         codes = ["amoxicillin", "azithromycin"]
     else:
-        codes = []
+        codes = ["paracetamol", "ibuprofen", "aspirin"]
     drugs = db.query(Drug).filter(Drug.code.in_(codes)).all()
     return sorted(drugs, key=lambda d: codes.index(d.code) if d.code in codes else 99)
 
@@ -263,24 +269,6 @@ def evaluate_care(
 
     indication = _symptom_indication(symptoms)
     candidates = _candidate_drugs(db, indication)
-
-    if not candidates and not requested_drug_code:
-        rules.append("symptom_requires_assessment")
-        protocol = ONBOARD_WATCH
-        if indication == "congestion":
-            protocol = (
-                "Congestion typique de microgravite (liquides vers la tete). "
-                "Hydratation, air cabine, compresses tiedes sinus. "
-                "Pas de vasoconstricteur en boucle. Avis sol en file, non bloquant."
-            )
-        return CareEvaluationResult(
-            excluded_options=[],
-            recommendation=None,
-            escalate_to_physician=False,
-            urgency="assessment",
-            rules_fired=rules,
-            non_drug_protocol=protocol,
-        )
 
     if requested_drug_code:
         req = db.query(Drug).filter(Drug.code == requested_drug_code).first()
@@ -373,7 +361,7 @@ def evaluate_care(
                 drug_code=drug.code,
                 drug_name=drug.name,
                 dose_mg=dose,
-                rationale=f"Indication {indication}, stock OK.{_support_text(indication)}",
+                        rationale=f"Ca correspond a ce que tu decris, et on a le stock.{_support_text(indication)}",
             ),
             escalate_to_physician=False,
             urgency="routine",
@@ -391,5 +379,5 @@ def evaluate_care(
         escalate_to_physician=False,
         urgency="routine",
         rules_fired=rules,
-        non_drug_protocol=ONBOARD_WATCH_24H,
+        non_drug_protocol=LAST_RESORT_WATCH,
     )

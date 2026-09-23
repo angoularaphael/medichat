@@ -1281,18 +1281,23 @@ button:disabled {
 .plant-portrait {
   display: grid;
   width: 100%;
-  height: 168px;
+  height: 200px;
   place-items: center;
   overflow: hidden;
   border: 1px solid rgba(110, 231, 255, 0.12);
   border-radius: 18px;
-  perspective: 820px;
   cursor: grab;
-  touch-action: pan-y;
+  touch-action: none;
   background:
     radial-gradient(circle at 50% 80%, rgba(100, 245, 189, 0.12), transparent 55%),
     radial-gradient(circle at 50% 20%, rgba(110, 231, 255, 0.08), transparent 46%),
     rgba(5, 8, 22, 0.55);
+}
+
+.plant-portrait canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
 }
 
 .plant-portrait:active {
@@ -2356,7 +2361,7 @@ button:disabled {
   }
 
   .plant-portrait {
-    height: 200px;
+    height: 240px;
   }
 
   .plant-actions {
@@ -2492,7 +2497,143 @@ button:disabled {
   }
 
   .chat-panel {
-    min-height: calc(100vh - 245px);
+  min-height: calc(100vh - 245px);
+  }
+}
+
+.login-modes {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  margin: 0 0 14px;
+}
+
+.login-modes button {
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(8, 10, 24, 0.6);
+  color: var(--muted);
+}
+
+.login-modes button.selected {
+  border-color: rgba(110, 231, 255, 0.45);
+  background: rgba(110, 231, 255, 0.12);
+  color: white;
+}
+
+.face-login,
+.face-enroll {
+  display: grid;
+  gap: 12px;
+}
+
+.face-preview,
+.face-placeholder {
+  width: 100%;
+  max-width: 280px;
+  height: 220px;
+  margin: 0 auto;
+  overflow: hidden;
+  object-fit: cover;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(5, 8, 22, 0.7);
+}
+
+.face-placeholder {
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  text-align: center;
+  gap: 8px;
+}
+
+.face-login-actions,
+.profile-photo-actions {
+  display: grid;
+  gap: 8px;
+}
+
+.ghost-action {
+  min-height: 44px;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--text);
+}
+
+.crew-face-list {
+  display: grid;
+  gap: 8px;
+}
+
+.crew-face-list a {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.crew-face-list a.selected {
+  border-color: rgba(110, 231, 255, 0.45);
+}
+
+.chat-toolbar {
+  display: grid;
+  gap: 10px;
+  padding: 12px 12px 0;
+}
+
+.chat-toolbar div {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.chat-toolbar button {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(8, 10, 24, 0.55);
+  color: inherit;
+}
+
+.face-enroll {
+  margin-top: 14px;
+  padding: 18px;
+  border-radius: var(--radius);
+}
+
+@media (min-width: 600px) {
+  .login-modes {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .chat-toolbar {
+    grid-template-columns: 1fr auto;
+    align-items: center;
+  }
+
+  .chat-toolbar div {
+    grid-template-columns: auto auto;
+  }
+
+  .chat-toolbar button {
+    width: auto;
+    padding: 0 14px;
   }
 }
 
