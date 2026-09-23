@@ -3,7 +3,7 @@
 **Workshop national EPSI B3 — Horizon 2080**  
 **Pilier : HumanTech et HealthTech spatiales**  
 **Vaisseau : patch Yggdrasil (couplage avec MIMIR, pilier DeepTech)**  
-**Version : validation mardi (Sprint 2) — évolutive jusqu’à jeudi**
+**Version : prototype V0.5 — mise à jour du 23 septembre 2026**
 
 ---
 
@@ -35,18 +35,32 @@ Le cœur n’est pas « une IA qui prescrit », mais un **moteur de règles méd
 2. **Pharmacie embarquée** — Catalogue médicaments (substance, classe thérapeutique, stock, unité, dose max), mouvements de stock (sortie, perte, rationnement).
 3. **Moteur de règles** — Évalue une demande de soin : contre-indications, interactions, stock disponible, niveau d’urgence ; sortie structurée (options écartées + raison, recommandation, escalade humaine si grave).
 4. **Graphe de substitution** — Si médicament A indisponible ou contre-indiqué, recherche d’alternatives dans la même indication (autre classe si besoin), avec traçabilité.
-5. **Interface conversationnelle** — Ollama (modèle léger) : collecte symptômes en texte libre, appelle le moteur de règles, **reformule** uniquement la décision (ne décide pas seul).
-6. **Simulateur d’épidémie** — Modèle simple (type SIR) sur équipage simulé ; déclenchement manuel « crise 15 % » pour la démo.
-7. **Indicateur d’autonomie** — Pour chaque médicament critique et globalement : **jours d’autonomie restants** ; comparaison politique « à la demande » vs « rationnement + quarantaine ».
-8. **Journal des décisions** — Historique horodaté pour audit et soutenance (qui, quoi, pourquoi, stock avant/après).
+5. **Compréhension conversationnelle** — segmentation des clauses, négations,
+   détection de l'équipier concerné et extraction multi-symptômes par règles
+   locales ; Ollama peut compléter l'extraction dans un catalogue fermé.
+6. **Réponse structurée par symptôme** — chaque problème détecté est évalué
+   séparément contre la base ; le LLM reformule uniquement le résultat.
+7. **Identification et continuité** — authentification JWT, rôles,
+   reconnaissance faciale locale optionnelle et conversations persistantes.
+8. **Simulateur d’épidémie** — scénario 15 % sur équipage simulé et triage.
+9. **Indicateur d’autonomie** — jours d’autonomie par médicament et comparaison
+   « à la demande » / « rationnement + quarantaine ».
+10. **Pharmacie vivante** — plantes et cultures biologiques proposées seulement
+    lorsque les médicaments utiles sont réellement épuisés.
+11. **Journal des décisions** — historique horodaté pour audit.
 
 ### 3.2 Flux principal (nominal)
 
 1. L’astronaute s’identifie (ou sélection de profil en démo).
 2. Il décrit ses symptômes via le chat.
-3. Le LLM structure la demande (symptômes, durée) et interroge le moteur de règles avec le profil + stock.
-4. Le système affiche les options écartées (ex. AINS si allergie ibuprofène) et une **proposition** (ex. paracétamol si stock OK).
-5. Validation humaine simulée (« confirmer » / « escalade médecin de bord »).
+3. Le système détecte le sujet, les clauses, négations et problèmes distincts.
+4. Ollama local peut enrichir l'extraction sans pouvoir ajouter librement une
+   prescription.
+5. Chaque problème interroge le moteur de règles avec le profil, les traitements,
+   les interactions, les stocks et cultures de la base.
+6. Le système affiche ce qu'il a compris, les options écartées et un plan par
+   symptôme.
+7. Validation humaine simulée (« confirmer » ou protocole d'urgence).
 
 ### 3.3 Flux crise (15 %)
 
@@ -59,8 +73,10 @@ Le cœur n’est pas « une IA qui prescrit », mais un **moteur de règles méd
 ### 3.4 Mode hors ligne
 
 - Aucune dépendance à Internet ou à une API pharmacie terrestre.
-- Ollama et PostgreSQL sur le réseau local du vaisseau (Docker Compose ou services locaux).
+- FastAPI, React, PostgreSQL, Mosquitto et Ollama sur le réseau local du
+  vaisseau avec Docker Compose.
 - Données médicales stockées et sauvegardées localement (ASRBD : sauvegarde, accès restreint).
+- Si Ollama ne répond plus, extraction déterministe et réponses template.
 
 ### 3.5 Interconnexion vaisseau (Axe 3 jury)
 
@@ -108,10 +124,11 @@ EIR peut **écouter** une alerte MIMIR (données de stock falsifiées) pour mont
 
 ### 5.2 Démo soutenance (minutes 2-3, environ 60 s)
 
-1. Profil **Elisa**, allergique ibuprofène : mal de tête -> options écartées + paracétamol proposé.
-2. Bouton **Crise 15 %** : triage visible, autonomie passe (ex. 30 j -> 9 j).
-3. Activation **rationnement / quarantaine** : autonomie remonte (chiffres mesurés en amont).
-4. **Stock paracétamol à zéro** : alternative ou protocole non médicamenteux + journal.
+1. Raphael signale : « Elisa vomit, tousse et a de la fièvre » : patient et
+   trois symptômes identifiés, plan séparé issu de la base.
+2. **Rupture totale des médicaments** : relais biologique ou protocole de bord.
+3. **Crise 15 %** : triage et baisse d'autonomie visibles.
+4. **Rationnement / quarantaine** : comparaison chiffrée des deux politiques.
 
 ### 5.3 Périmètre par priorité
 
@@ -215,10 +232,15 @@ T10 |Deux patients même médicament stock faible | Priorisation triage
 
 ## 11. Validation mardi — checklist coach
 
-- [ ] Pilier HealthTech validé, pas de doublon MedBox identique dans la classe.
-- [ ] Matériel : Docker OK sur les postes, Ollama installé, MQTT broker.
-- [ ] Périmètre indispensable validé pour 48 h de prototype.
-- [ ] Format d’interconnexion avec MIMIR (topics MQTT) acté.
+- [x] Pilier HealthTech et positionnement aide à la décision.
+- [x] Docker, PostgreSQL, Mosquitto et fallback sans Ollama.
+- [x] Moteur de règles, profils, conversations, stocks, crise et cultures.
+- [x] Contrat MQTT MIMIR implémenté côté EIR.
+- [x] Tests automatisés backend (59 réussis au 23 septembre 2026).
+- [ ] Rapport final exporté en PDF au nom réglementaire.
+- [ ] Support final exporté en PPTX au nom réglementaire.
+- [ ] Kanban et répartition réelle des contributions ajoutés au dossier.
+- [ ] Sources médicales des règles et plantes ajoutées au dossier.
 
 ---
 

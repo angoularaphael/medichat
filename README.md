@@ -2,7 +2,24 @@
 
 Pharmacie embarquee **EIR** (Workshop EPSI Horizon 2080, pilier HealthTech). Depot code : [github.com/angoularaphael/medichat](https://github.com/angoularaphael/medichat).
 
-Prototype d **aide a la decision** — pas un dispositif medical certifie. Le moteur de regles deterministe decide ; Ollama reformule uniquement.
+Prototype d **aide a la decision** — pas un dispositif medical certifie. Le
+moteur de regles deterministe decide a partir du profil, des interactions et de
+la base locale. Ollama peut enrichir l extraction des symptomes et reformuler la
+decision, mais il ne prescrit jamais seul.
+
+## Fonctionnalites actuelles
+
+- Chat clinique multi-symptomes : segmentation du message, negations, sujet
+  concerne et extraction locale completee par Ollama si disponible.
+- Reponse distincte pour chaque symptome, avec options ecartees et raisons.
+- Profils equipage, allergies, traitements, authentification JWT et roles.
+- Identification faciale locale optionnelle et conversations persistantes.
+- Stocks, confirmations de prise, interactions, substitutions et journal audit.
+- Relais par plantes ou cultures biologiques quand tous les flacons utiles sont
+  epuises.
+- Urgences critiques et guide explicite des cas d isolement cabine medicale.
+- Crise 15 %, triage, rationnement et comparaison d autonomie medicale.
+- MQTT vers le bus Yggdrasil et reception des alertes securite MIMIR.
 
 ## Prerequis
 
@@ -29,6 +46,7 @@ docker compose up --build
 - MQTT : localhost:1883
 
 Sans Ollama, le chat utilise automatiquement une reponse securisee hors ligne.
+L extraction deterministe reste disponible, y compris en cas de panne du modele.
 
 ## Connexion
 
@@ -46,14 +64,24 @@ docker compose down -v
 docker compose up --build
 ```
 
-## Demo soutenance (60 s)
+## Demo soutenance (60 a 90 s)
 
-1. Profil **Elisa**, message « mal de tete » -> ibuprofene ecarte, paracetamol propose.
-2. **Crise 15 %** -> triage + baisse autonomie.
-3. **Rationnement / quarantaine** -> autonomie remonte.
-4. **Stock paracetamol a 0** -> protocole alternatif / journal.
+1. Connecte comme **Raphael** (poste medical), message : « Elisa vomit, tousse
+   beaucoup et a de la fievre ».
+2. Montrer le patient detecte, les trois symptomes et le plan separe issu de la
+   base locale.
+3. **Rupture totale des stocks** -> nouveau message -> relais serre/cuves ou
+   protocole de bord.
+4. **Crise 15 %** puis **rationnement** -> triage et autonomie compares.
+5. Facultatif si le temps le permet : urgence « douleur poitrine et difficulte
+   a respirer » -> isolement cabine medicale.
 
-Voir [docs/demo-soutenance.md](docs/demo-soutenance.md).
+Voir [docs/demo-soutenance.md](docs/demo-soutenance.md), le
+[rapport technique source](docs/rapport-technique-source.md) et le
+[support de presentation source](docs/support-presentation.md).
+
+Priorites pour gagner des points :
+[docs/plan-amelioration-technique.md](docs/plan-amelioration-technique.md).
 
 ## Tests
 
@@ -62,6 +90,8 @@ cd backend
 pip install -r requirements.txt
 pytest
 ```
+
+Etat verifie le 23 septembre 2026 : **59 tests backend reussis**.
 
 ## Reset demo
 

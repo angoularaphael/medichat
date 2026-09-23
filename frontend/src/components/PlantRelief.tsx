@@ -146,7 +146,7 @@ function ReliefMesh({ src }: { src: string }) {
 type PlantReliefProps = {
   src: string;
   name: string;
-  controlsRef: RefObject<OrbitControlsImpl | null>;
+  controlsRef: RefObject<OrbitControlsImpl>;
 };
 
 function Scene({ src, controlsRef }: { src: string; controlsRef: PlantReliefProps["controlsRef"] }) {
@@ -173,7 +173,7 @@ function Scene({ src, controlsRef }: { src: string; controlsRef: PlantReliefProp
 }
 
 export default function PlantRelief({ src, name }: { src: string; name: string }) {
-  const controlsRef = useRef<OrbitControlsImpl | null>(null);
+  const controlsRef = useRef<OrbitControlsImpl>(null);
 
   function zoom(delta: number) {
     const controls = controlsRef.current;
