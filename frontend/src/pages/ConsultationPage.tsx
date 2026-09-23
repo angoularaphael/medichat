@@ -38,6 +38,7 @@ export default function ConsultationPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const crew = useQuery({ queryKey: ["crew"], queryFn: api.crew });
+  const isolationGuide = useQuery({ queryKey: ["isolation-guide"], queryFn: api.isolationGuide });
   const [selectedCrew, setSelectedCrew] = useState(user?.crew_member_code ?? "elisa");
   const [conversationId, setConversationId] = useState<string | null>(() => localStorage.getItem(CONV_KEY));
   const [message, setMessage] = useState("");
@@ -140,7 +141,8 @@ export default function ConsultationPage() {
     mutationFn: async () => {
       if (!evaluation?.recommendation) return;
       const item = evaluation.recommendation;
-      await api.confirm(selectedCrew, item.drug_code, item.dose_mg);
+      const target = evaluation?.understanding?.care_crew_code ?? selectedCrew;
+      await api.confirm(target, item.drug_code, item.dose_mg);
     },
     onSuccess: async () => {
       setConfirmed(true);
@@ -326,10 +328,50 @@ export default function ConsultationPage() {
                 initial={{ opacity: 0, x: 18 }}
                 animate={{ opacity: 1, x: 0 }}
               >
+                {evaluation.understanding && evaluation.understanding.findings.length > 0 && (
+                  <div className="recommendation-card glass-panel">
+                    <div className="recommendation-top">
+                      <span><Sparkles size={17} /> Compréhension EIR</span>
+                      <i>{evaluation.understanding.extraction_mode}</i>
+                    </div>
+                    {evaluation.understanding.narrative_summary && (
+                      <p className="rationale">{evaluation.understanding.narrative_summary}</p>
+                    )}
+                    <ul className="finding-list">
+                      {evaluation.understanding.findings.map((row) => (
+                        <li key={row.symptom_label}>
+                          <strong>{row.topic_fr}</strong>
+                          <span>{row.source_text}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
                 {evaluation.escalate_to_physician && (
                   <div className="urgent-card">
                     <AlertCircle size={24} />
                     <div><span>Priorité critique</span><strong>Protocole d'urgence embarque</strong><p>{evaluation.non_drug_protocol}</p></div>
+                  </div>
+                )}
+
+                {evaluation.symptom_items && evaluation.symptom_items.length > 1 && (
+                  <div className="recommendation-card glass-panel">
+                    <div className="recommendation-top">
+                      <span><HeartPulse size={17} /> Plan par symptôme</span>
+                    </div>
+                    <ul className="finding-list">
+                      {evaluation.symptom_items.map((item) => (
+                        <li key={item.symptom_label}>
+                          <strong>{item.topic_fr}</strong>
+                          <span>
+                            {item.recommendation
+                              ? `${item.recommendation.drug_name} ${item.recommendation.dose_mg} mg`
+                              : item.non_drug_protocol || item.plant_recommendation?.protocol || "Surveillance"}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                 )}
 
@@ -414,6 +456,20 @@ export default function ConsultationPage() {
               </motion.div>
             )}
           </AnimatePresence>
+
+          {isolationGuide.data && (
+            <details className="isolation-guide glass-panel">
+              <summary>Quand l isolement cabine est declenche</summary>
+              <p>{isolationGuide.data.summary}</p>
+              <ul className="finding-list">
+                {isolationGuide.data.isolation_cases.map((row) => (
+                  <li key={row.title}>
+                    <strong>{row.title}</strong>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
         </aside>
       </div>
     </div>

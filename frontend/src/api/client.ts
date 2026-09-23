@@ -77,6 +77,23 @@ export type Drug = {
   is_critical: boolean;
 };
 
+export type SymptomCareItem = {
+  symptom_label: string;
+  topic_fr: string;
+  recommendation: {
+    drug_code: string;
+    drug_name: string;
+    dose_mg: number;
+    rationale: string;
+  } | null;
+  non_drug_protocol?: string | null;
+  plant_recommendation?: {
+    plant_code: string;
+    plant_name: string;
+    protocol: string;
+  } | null;
+};
+
 export type CareEvaluation = {
   excluded_options: { drug_code: string; reason_code: string; reason_text: string }[];
   recommendation: {
@@ -93,6 +110,15 @@ export type CareEvaluation = {
     plant_code: string;
     plant_name: string;
     protocol: string;
+  } | null;
+  symptom_items?: SymptomCareItem[];
+  understanding?: {
+    care_crew_code: string;
+    care_crew_name?: string | null;
+    third_person: boolean;
+    findings: { symptom_label: string; source_text: string; topic_fr: string }[];
+    extraction_mode: string;
+    narrative_summary: string;
   } | null;
 };
 
@@ -249,6 +275,13 @@ export const api = {
   rationing: () => request<AutonomyCompare>("/api/crisis/rationing", { method: "POST" }),
   forceStockZero: (code: string) =>
     request("/api/demo/force-stock-zero/" + code, { method: "POST" }),
+  forceAllStockZero: () => request("/api/demo/force-all-stock-zero", { method: "POST" }),
+  isolationGuide: () =>
+    request<{
+      isolation_cases: { title: string; examples: string[] }[];
+      non_isolation_examples: { title: string; examples: string[] }[];
+      summary: string;
+    }>("/api/clinical/isolation-guide"),
   restock: () => request("/api/demo/restock", { method: "POST" }),
   resetDemo: () => request("/api/demo/reset", { method: "POST" }),
   plants: () => request<PlantCulture[]>("/api/plants"),

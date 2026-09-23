@@ -232,8 +232,8 @@ export default function DashboardPage() {
             </article>
             <article>
               <h3>Rupture de stock</h3>
-              <p>Met le paracetamol a 0. Medichat doit alors proposer un plan B (autre molecule ou protocole de bord).</p>
-              <button className="danger-ghost" type="button" onClick={() => runAction(() => api.forceStockZero("paracetamol"))}>
+              <p>Met tous les medicaments a 0. Medichat bascule sur serre, cuves ou protocoles de bord.</p>
+              <button className="danger-ghost" type="button" onClick={() => runAction(api.forceAllStockZero)}>
                 <AlertTriangle size={18} /> Simuler
               </button>
             </article>

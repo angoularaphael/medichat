@@ -22,6 +22,30 @@ class PlantRecommendation(BaseModel):
     protocol: str
 
 
+class ClinicalFindingOut(BaseModel):
+    symptom_label: str
+    source_text: str
+    topic_fr: str
+
+
+class MessageUnderstandingOut(BaseModel):
+    care_crew_code: str
+    care_crew_name: str | None = None
+    third_person: bool = False
+    findings: list[ClinicalFindingOut] = Field(default_factory=list)
+    extraction_mode: str = "rules"
+    narrative_summary: str = ""
+
+
+class SymptomCareItem(BaseModel):
+    symptom_label: str
+    topic_fr: str
+    recommendation: Recommendation | None = None
+    non_drug_protocol: str | None = None
+    plant_recommendation: PlantRecommendation | None = None
+    escalate_to_physician: bool = False
+
+
 class CareEvaluationResult(BaseModel):
     excluded_options: list[ExcludedOption] = Field(default_factory=list)
     recommendation: Recommendation | None = None
@@ -30,6 +54,8 @@ class CareEvaluationResult(BaseModel):
     rules_fired: list[str] = Field(default_factory=list)
     non_drug_protocol: str | None = None
     plant_recommendation: PlantRecommendation | None = None
+    symptom_items: list[SymptomCareItem] = Field(default_factory=list)
+    understanding: MessageUnderstandingOut | None = None
 
 
 class CareEvaluateRequest(BaseModel):

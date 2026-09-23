@@ -1,7 +1,17 @@
 from sqlalchemy.orm import Session
 
 from app.models.entities import Drug, DrugInteraction, CrewMember
-from app.schemas.api import CareEvaluationResult, ExcludedOption, PlantRecommendation, Recommendation
+from app.schemas.api import (
+    CareEvaluationResult,
+    ClinicalFindingOut,
+    ExcludedOption,
+    MessageUnderstandingOut,
+    PlantRecommendation,
+    Recommendation,
+    SymptomCareItem,
+)
+from app.services.clinical_topics import topic_for_label
+from app.services.message_understanding import MessageUnderstanding, build_narrative_summary
 from app.services import bacteria, plants, substitution
 from app.services.symptom_catalog import check_isolation
 
@@ -602,4 +612,100 @@ def evaluate_care(
         urgency="routine",
         rules_fired=rules,
         non_drug_protocol=protocol,
+    )
+
+
+def _attach_understanding(
+    result: CareEvaluationResult,
+    understanding: MessageUnderstanding,
+    care_name: str | None,
+) -> CareEvaluationResult:
+    summary = build_narrative_summary(understanding, care_name or understanding.care_crew_code)
+    result.understanding = MessageUnderstandingOut(
+        care_crew_code=understanding.care_crew_code,
+        care_crew_name=care_name,
+        third_person=understanding.third_person,
+        findings=[
+            ClinicalFindingOut(
+                symptom_label=f.symptom_label,
+                source_text=f.source_text,
+                topic_fr=f.topic_fr,
+            )
+            for f in understanding.findings
+        ],
+        extraction_mode=understanding.extraction_mode,
+        narrative_summary=summary,
+    )
+    return result
+
+
+def _symptom_item_from_eval(label: str, sub: CareEvaluationResult) -> SymptomCareItem:
+    return SymptomCareItem(
+        symptom_label=label,
+        topic_fr=topic_for_label(label),
+        recommendation=sub.recommendation,
+        non_drug_protocol=sub.non_drug_protocol,
+        plant_recommendation=sub.plant_recommendation,
+        escalate_to_physician=sub.escalate_to_physician,
+    )
+
+
+def evaluate_from_understanding(
+    db: Session,
+    *,
+    understanding: MessageUnderstanding,
+    care_crew_name: str | None = None,
+) -> CareEvaluationResult:
+    labels = understanding.symptom_labels
+    crew = understanding.care_crew_code
+
+    if not labels:
+        result = evaluate_care(db, crew_member_code=crew, symptoms=[])
+        return _attach_understanding(result, understanding, care_crew_name)
+
+    isolated, _rule = check_isolation(labels)
+    if isolated:
+        result = evaluate_care(db, crew_member_code=crew, symptoms=labels)
+        return _attach_understanding(result, understanding, care_crew_name)
+
+    if len(labels) == 1:
+        result = evaluate_care(db, crew_member_code=crew, symptoms=labels)
+        result.symptom_items = [_symptom_item_from_eval(labels[0], result)]
+        return _attach_understanding(result, understanding, care_crew_name)
+
+    items: list[SymptomCareItem] = []
+    all_excluded: list[ExcludedOption] = []
+    all_rules: list[str] = ["multi_symptom_eval"]
+    primary_rec: Recommendation | None = None
+    primary_plant: PlantRecommendation | None = None
+    seen_excluded: set[tuple[str, str]] = set()
+
+    for label in labels:
+        sub = evaluate_care(db, crew_member_code=crew, symptoms=[label])
+        if sub.escalate_to_physician:
+            return _attach_understanding(sub, understanding, care_crew_name)
+        items.append(_symptom_item_from_eval(label, sub))
+        all_rules.extend(sub.rules_fired)
+        for opt in sub.excluded_options:
+            key = (opt.drug_code, opt.reason_code)
+            if key not in seen_excluded:
+                seen_excluded.add(key)
+                all_excluded.append(opt)
+        if not primary_rec and sub.recommendation:
+            primary_rec = sub.recommendation
+        if not primary_plant and sub.plant_recommendation:
+            primary_plant = sub.plant_recommendation
+
+    return _attach_understanding(
+        CareEvaluationResult(
+            excluded_options=all_excluded,
+            recommendation=primary_rec,
+            plant_recommendation=primary_plant,
+            escalate_to_physician=False,
+            urgency="routine",
+            rules_fired=all_rules,
+            symptom_items=items,
+        ),
+        understanding,
+        care_crew_name,
     )

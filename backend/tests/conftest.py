@@ -2,6 +2,7 @@ import os
 
 os.environ["DATABASE_URL"] = "sqlite://"
 os.environ["MQTT_BROKER"] = "mqtt://127.0.0.1:1883"
+os.environ["OLLAMA_EXTRACT_SYMPTOMS"] = "false"
 
 import pytest
 from fastapi.testclient import TestClient

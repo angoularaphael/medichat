@@ -186,6 +186,12 @@ def run_seed(db: Session) -> None:
 DEFAULT_STOCKS = {row[0]: row[6] for row in FORMULARY}
 
 
+def zero_all_drug_stocks(db: Session) -> None:
+    for drug in db.query(Drug).all():
+        drug.stock_units = 0
+    db.commit()
+
+
 def restock_drugs(db: Session) -> None:
     for code, stock in DEFAULT_STOCKS.items():
         drug = db.query(Drug).filter(Drug.code == code).first()

@@ -90,6 +90,41 @@ def _symptom_label_fr(symptoms: list[str]) -> str:
     return "ce que tu ressens"
 
 
+def _template_structured(evaluation: CareEvaluationResult) -> str | None:
+    items = evaluation.symptom_items
+    if not items:
+        return None
+    understanding = evaluation.understanding
+    multi = len(items) > 1
+    third = bool(understanding and understanding.third_person)
+    if not multi and not third:
+        return None
+
+    intro = ""
+    if understanding and understanding.narrative_summary:
+        intro = understanding.narrative_summary + " "
+    elif understanding and third:
+        who = understanding.care_crew_name or understanding.care_crew_code
+        intro = f"Pour {who}, voici ce qu'on fait pour chaque point. "
+
+    parts: list[str] = []
+    for item in items:
+        if item.recommendation:
+            rec = item.recommendation
+            parts.append(
+                f"Pour {item.topic_fr}, {rec.drug_name} ({rec.dose_mg:.0f} mg). "
+                f"{rec.rationale.strip()}"
+            )
+        elif item.plant_recommendation:
+            parts.append(f"Pour {item.topic_fr}, {item.plant_recommendation.protocol}")
+        elif item.non_drug_protocol:
+            parts.append(f"Pour {item.topic_fr}: {item.non_drug_protocol}")
+
+    if not parts:
+        return None
+    return (intro + " ".join(parts)).strip() + " Dis-moi si ca evolue."
+
+
 def template_reply(
     evaluation: CareEvaluationResult,
     user_message: str = "",
@@ -101,6 +136,10 @@ def template_reply(
     if evaluation.escalate_to_physician:
         detail = evaluation.non_drug_protocol or "On passe en urgence cabine tout de suite."
         return f"La c'est serieux. {detail}"
+
+    structured = _template_structured(evaluation)
+    if structured and not meta_followup:
+        return structured
 
     if meta_followup:
         if evaluation.recommendation:
@@ -142,7 +181,8 @@ async def reformulate_with_ollama(
         "Ne recopies jamais le message du patient mot pour mot. Pas de formule du type j'entends. "
         "Tu reformules UNIQUEMENT la decision JSON. "
         "Ne prescris jamais un medicament absent du JSON. "
-        "Reponds au mal ou a la question, en une ou deux phrases courtes. "
+        "Reponds a CHAQUE point dans symptom_items du JSON si present. "
+        "Reponds au mal ou a la question, en phrases courtes. "
         "N'invente pas de latence terrestre, de coupure, ni d'isolement "
         "sauf urgence critique dans le JSON. Francais clair, sans emoji."
     )

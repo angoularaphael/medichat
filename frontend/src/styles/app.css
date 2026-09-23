@@ -2101,6 +2101,56 @@ button:disabled {
   font-size: 12px;
 }
 
+.finding-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.finding-list li {
+  display: grid;
+  gap: 4px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+}
+
+.finding-list li:first-child {
+  border-top: none;
+}
+
+.finding-list strong {
+  color: #d4d8e8;
+  font-weight: 600;
+}
+
+.finding-list span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.isolation-guide {
+  margin-top: 14px;
+  padding: 14px 16px;
+}
+
+.isolation-guide summary {
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+
+.isolation-guide p {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .excluded-card {
   padding: 16px;
 }

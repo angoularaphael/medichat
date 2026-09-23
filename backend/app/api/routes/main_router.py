@@ -31,12 +31,14 @@ from app.services import (
     crisis,
     face_id,
     journal,
+    message_understanding,
     mqtt_service,
     ollama_client,
     plants,
     rules_engine,
     triage,
 )
+from app.services.symptom_catalog import ISOLATION_CASES_FR, NON_ISOLATION_EXAMPLES_FR
 
 router = APIRouter(prefix="/api")
 
@@ -303,15 +305,33 @@ async def chat_message(
         conversation = conversations.create_conversation(db, user.username, body.crew_member_code)
 
     history = conversations.history_text(db, conversation.id)
-    symptoms = ollama_client.extract_symptoms_for_eval(history, body.message)
-    meta_followup = ollama_client.is_meta_question(body.message) and not ollama_client.clinical_symptoms(
-        body.message
+    understanding = await message_understanding.understand_message(
+        body.message,
+        body.crew_member_code,
     )
-    evaluation = rules_engine.evaluate_care(
+    if understanding.third_person and user.role != "admin":
+        raise HTTPException(
+            403,
+            "Seul le poste medical (admin) peut demander une decision pour un autre equipier.",
+        )
+    care_member = (
+        db.query(CrewMember).filter(CrewMember.code == understanding.care_crew_code).first()
+    )
+    care_name = care_member.full_name if care_member else understanding.care_crew_code
+    evaluation = rules_engine.evaluate_from_understanding(
         db,
-        crew_member_code=body.crew_member_code,
-        symptoms=symptoms,
+        understanding=understanding,
+        care_crew_name=care_name,
     )
+    symptoms = understanding.symptom_labels
+    meta_followup = ollama_client.is_meta_question(body.message) and not symptoms
+    if meta_followup and history:
+        symptoms = ollama_client.extract_symptoms_for_eval(history, body.message)
+        evaluation = rules_engine.evaluate_care(
+            db,
+            crew_member_code=understanding.care_crew_code,
+            symptoms=symptoms,
+        )
     content, mode = await ollama_client.reformulate_with_ollama(
         body.message,
         evaluation,
@@ -319,6 +339,8 @@ async def chat_message(
         symptoms=symptoms,
         meta_followup=meta_followup,
     )
+    if evaluation.understanding and understanding.extraction_mode == "rules+ollama":
+        mode = "ollama" if mode == "ollama" else "rules+ollama"
 
     db.add(
         ChatMessage(
@@ -411,6 +433,38 @@ def activate_rationing(
         crisis_active=data["crisis_active"],
         rationing_active=data["rationing_active"],
     )
+
+
+@router.get("/clinical/isolation-guide")
+def isolation_guide(_user: Annotated[User, Depends(get_current_user)]):
+    return {
+        "isolation_cases": [
+            {"title": title, "examples": examples} for title, examples in ISOLATION_CASES_FR
+        ],
+        "non_isolation_examples": [
+            {"title": title, "examples": examples}
+            for title, examples in NON_ISOLATION_EXAMPLES_FR
+        ],
+        "summary": (
+            "Isolement cabine medicale uniquement si un motif critique est detecte "
+            "(poitrine, respiration, convulsion, hemorragie, etc.). "
+            "Sinon protocole medicamenteux ou surveillance a bord."
+        ),
+    }
+
+
+@router.post("/demo/force-all-stock-zero")
+def force_all_stock_zero(
+    db: Annotated[Session, Depends(get_db)],
+    _admin: Annotated[User, Depends(require_admin)],
+):
+    demo_data.zero_all_drug_stocks(db)
+    journal.log_decision(
+        db,
+        action="demo_all_stock_zero",
+        summary="Demo: tous les stocks medicaments a zero",
+    )
+    return {"ok": True}
 
 
 @router.post("/demo/force-stock-zero/{drug_code}")

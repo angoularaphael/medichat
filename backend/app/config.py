@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     mqtt_client_id: str = "eir-api"
     ollama_base_url: str = "http://host.docker.internal:11434"
     ollama_model: str = "llama3.2:3b"
+    ollama_extract_symptoms: bool = True
     cors_origins: str = "http://localhost:5173"
     crew_size: int = 20
     crisis_sick_ratio: float = 0.15
