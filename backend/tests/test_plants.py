@@ -286,6 +286,68 @@ def test_insomnia_no_paracetamol(client, monkeypatch):
     assert "paracetamol" not in (data["content"] or "").lower()
 
 
+def test_fatigue_after_back_pain_does_not_reuse_analgesic(client, monkeypatch):
+    from app.services import ollama_client
+
+    async def _tpl(message, evaluation, history="", symptoms=None, meta_followup=False):
+        return (
+            ollama_client.template_reply(
+                evaluation, message, symptoms=symptoms or [], meta_followup=meta_followup
+            ),
+            "template",
+        )
+
+    monkeypatch.setattr(ollama_client, "reformulate_with_ollama", _tpl)
+    created = client.post("/api/conversations", json={"crew_member_code": "raphael"})
+    cid = created.json()["id"]
+    client.post(
+        "/api/chat/message",
+        json={"crew_member_code": "raphael", "message": "j ai mal au dos", "conversation_id": cid},
+    )
+    second = client.post(
+        "/api/chat/message",
+        json={
+            "crew_member_code": "raphael",
+            "message": "je me sens fatiguer",
+            "conversation_id": cid,
+        },
+    )
+    ev = second.json()["evaluation"]
+    assert ev["recommendation"] is None
+    assert "fatigue_non_pharm" in ev["rules_fired"]
+
+
+def test_mal_a_dormir_recognized(client, monkeypatch):
+    from app.services import ollama_client
+
+    async def _tpl(message, evaluation, history="", symptoms=None, meta_followup=False):
+        return (
+            ollama_client.template_reply(
+                evaluation, message, symptoms=symptoms or [], meta_followup=meta_followup
+            ),
+            "template",
+        )
+
+    monkeypatch.setattr(ollama_client, "reformulate_with_ollama", _tpl)
+    response = client.post(
+        "/api/chat/message",
+        json={
+            "crew_member_code": "raphael",
+            "message": "j ai du mal a dormir",
+            "session_id": "dormir2",
+        },
+    )
+    assert "sleep_non_pharm" in response.json()["evaluation"]["rules_fired"]
+
+
+def test_perte_appetit_non_pharm(client):
+    response = client.post(
+        "/api/care/evaluate",
+        json={"crew_member_code": "raphael", "symptoms": ["perte appetit"]},
+    )
+    assert "appetite_non_pharm" in response.json()["rules_fired"]
+
+
 def test_raphael_para_allergy_blocks_with_clear_reasons(client):
     client.post("/api/demo/reset")
     client.patch(

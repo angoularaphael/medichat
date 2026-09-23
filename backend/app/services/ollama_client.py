@@ -4,49 +4,10 @@ import httpx
 
 from app.config import settings
 from app.schemas.api import CareEvaluationResult
+from app.services.symptom_catalog import ALL_SYMPTOM_PATTERNS, labels_from_text
 
 
-SYMPTOM_PATTERNS = [
-    (re.compile(r"mal de t[êe]te|cephalee|headache", re.I), "mal de tete"),
-    (
-        re.compile(
-            r"mal au cr[âa]ne|mal au cran\b|mal a la tete|mal à la tête|mal dans la tete",
-            re.I,
-        ),
-        "mal de tete",
-    ),
-    (
-        re.compile(
-            r"insomnie|dors pas|ne dors|pas dormir|mal dormir|nuit blanche|"
-            r"arrive pas a dormir|arrive pas à dormir|sommeil",
-            re.I,
-        ),
-        "insomnie",
-    ),
-    (re.compile(r"douleur thoracique|chest pain", re.I), "douleur thoracique"),
-    (re.compile(r"mal au rein|reins?|colique n[eé]phr|flanc", re.I), "mal au rein"),
-    (re.compile(r"fi[eè]vre|fever", re.I), "fievre"),
-    (re.compile(r"naus[ée]e?|envie de vomir|vomissement", re.I), "nausee"),
-    (re.compile(r"diarrh[ée]e|selles liquides|gastro", re.I), "diarrhee"),
-    (re.compile(r"constip|pas de selle|ventre bloqu", re.I), "constipation"),
-    (re.compile(r"reflux|br[uû]lure d[' ]estomac|aigreur", re.I), "reflux"),
-    (re.compile(r"mal de dos|lombalgie|dorsalgie", re.I), "mal de dos"),
-    (re.compile(r"mal de l[' ]espace|cin[eé]tose|mal des transports", re.I), "mal de l'espace"),
-    (re.compile(r"congestion|nez bouch|sinus", re.I), "congestion"),
-    (re.compile(r"toux|cough", re.I), "toux"),
-    (re.compile(r"mal au ventre|douleur abdominale|abdominal", re.I), "mal de ventre"),
-    (re.compile(r"vertige|[ée]tourdissement|dizzy", re.I), "vertige"),
-    (
-        re.compile(
-            r"essouffl(?:e|ee|é|ée)|difficult[ée] [àa] respirer|mal [àa] respirer|dyspn[ée]e",
-            re.I,
-        ),
-        "difficulte respiratoire",
-    ),
-    (re.compile(r"mal de gorge|gorge.*mal|sore throat|angine", re.I), "mal de gorge"),
-    (re.compile(r"infection|infecte|plaie|antibiot", re.I), "infection"),
-    (re.compile(r"j[' ]ai mal|mal (au|a la|à la|de)|douleur", re.I), "douleur"),
-]
+SYMPTOM_PATTERNS = ALL_SYMPTOM_PATTERNS
 
 CLINICAL_LABELS = {label for _, label in SYMPTOM_PATTERNS}
 
@@ -56,13 +17,14 @@ META_QUESTION = re.compile(
     re.I,
 )
 
+EPISODE_FOLLOWUP = re.compile(
+    r"pas mieux|toujours|encore\b|pareil|idem|ca persiste|toujours mal|aggrave",
+    re.I,
+)
+
 
 def extract_symptoms(text: str) -> list[str]:
-    found: list[str] = []
-    for pattern, label in SYMPTOM_PATTERNS:
-        if pattern.search(text):
-            found.append(label)
-    return found
+    return labels_from_text(text)
 
 
 def clinical_symptoms(text: str) -> list[str]:
@@ -88,11 +50,7 @@ def extract_symptoms_for_eval(history: str, message: str) -> list[str]:
     clinical = clinical_symptoms(message)
     if clinical:
         return clinical
-    if history:
-        from_history = _symptoms_from_history(history)
-        if from_history:
-            return from_history
-    if is_meta_question(message) and history:
+    if history and (is_meta_question(message) or EPISODE_FOLLOWUP.search(message)):
         return _symptoms_from_history(history)
     return []
 
@@ -112,6 +70,17 @@ def _symptom_label_fr(symptoms: list[str]) -> str:
         "constipation": "ta constipation",
         "infection": "cette infection",
         "insomnie": "ton sommeil",
+        "fatigue": "ta fatigue",
+        "perte appetit": "ta perte d'appetit",
+        "congestion": "ta congestion",
+        "toux": "ta toux",
+        "mal de ventre": "ton mal de ventre",
+        "vertige": "tes vertiges",
+        "deshydratation": "ta deshydratation",
+        "prurit": "tes demangeaisons",
+        "brulure": "ta brulure",
+        "anxiete": "ton stress",
+        "mal oreille": "ton oreille",
     }
     label = mapping.get(primary)
     if label:

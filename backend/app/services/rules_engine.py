@@ -3,15 +3,10 @@ from sqlalchemy.orm import Session
 from app.models.entities import Drug, DrugInteraction, CrewMember
 from app.schemas.api import CareEvaluationResult, ExcludedOption, PlantRecommendation, Recommendation
 from app.services import bacteria, plants, substitution
+from app.services.symptom_catalog import check_isolation
 
 
 AINS_CLASS = "AINS"
-RED_FLAG_SYMPTOMS = {
-    "chest_pain",
-    "douleur_thoracique",
-    "douleur thoracique",
-    "difficulte_respiratoire",
-}
 
 ALLERGY_ALIASES = {
     "para": "paracetamol",
@@ -92,6 +87,30 @@ SLEEP_PROTOCOL = (
     "Lumiere basse, pas d'ecrans, routine calme. "
     "Si tu as aussi mal quelque part (tete, dos...), dis-le moi."
 )
+FATIGUE_PROTOCOL = (
+    "Pour la fatigue on ne part pas sur un analgesique sans douleur associee. "
+    "Repos, hydratation, et dis-moi si tu as fievre, mal de tete ou nausees."
+)
+APPETITE_PROTOCOL = (
+    "Pour la perte d'appetit: petites portions, bois regulierement, repos. "
+    "Si tu as nausees ou vomissements en plus, dis-le moi."
+)
+DEHYDRATION_PROTOCOL = (
+    "Pense deshydratation: bois par petites gorgees, sels de rehydration si tu en as. "
+    "Si vomissements ou diarrhee en plus, dis-le moi."
+)
+PRURIT_PROTOCOL = (
+    "Demangeaisons: evite de gratter, douche tiede, vetements amples. "
+    "Si gorge qui serre ou essoufflement, alerte tout de suite."
+)
+BRULURE_PROTOCOL = (
+    "Brulure legere: eau tiede 10-15 min, pas de glace directe, couvre proprement. "
+    "Brulure chimique ou grande surface: alerte medicale."
+)
+ANXIETE_PROTOCOL = (
+    "Stress a bord: respiration lente, ancrage, parle-moi. "
+    "Si douleur poitrine ou essoufflement en plus, ce n'est plus que du stress."
+)
 
 
 def _symptom_indication(symptoms: list[str]) -> str:
@@ -111,6 +130,10 @@ def _symptom_indication(symptoms: list[str]) -> str:
         return "pain_renal"
     if "mal de dos" in s or "lombalgie" in s:
         return "pain_mild"
+    if "fatigue" in s:
+        return "fatigue"
+    if "perte appetit" in s or "appetit" in s:
+        return "appetite"
     if "diarrh" in s or "selles liquides" in s or "gastro" in s:
         return "diarrhea"
     if "constip" in s or "pas de selle" in s or "ventre bloque" in s:
@@ -127,8 +150,24 @@ def _symptom_indication(symptoms: list[str]) -> str:
         return "nausea"
     if "asthme" in s or "sifflement" in s:
         return "asthma"
-    if "congestion" in s or "nez bouche" in s or "sinus" in s:
+    if "congestion" in s or "nez bouche" in s or "sinus" in s or "rhume" in s:
         return "congestion"
+    if "toux" in s:
+        return "toux"
+    if "deshydratation" in s:
+        return "dehydration"
+    if "prurit" in s:
+        return "prurit"
+    if "brulure" in s:
+        return "brulure"
+    if "anxiete" in s:
+        return "anxiety"
+    if "mal oreille" in s:
+        return "pain_mild"
+    if "mal de ventre" in s:
+        return "pain_mild"
+    if "vertige" in s:
+        return "vertigo"
     if "mal" in s or "douleur" in s or "souffre" in s:
         return "pain_mild"
     return "unspecified"
@@ -324,9 +363,9 @@ def evaluate_care(
             non_drug_protocol="Identification equipage requise avant toute proposition EIR.",
         )
 
-    normalized = {s.lower().replace(" ", "_") for s in symptoms}
-    if normalized & RED_FLAG_SYMPTOMS or any("thorac" in s for s in symptoms):
-        rules.append("red_flag_escalation")
+    isolated, isolation_rule = check_isolation(symptoms)
+    if isolated:
+        rules.append(isolation_rule or "red_flag_escalation")
         return CareEvaluationResult(
             excluded_options=[],
             recommendation=None,
@@ -367,6 +406,80 @@ def evaluate_care(
             urgency="routine",
             rules_fired=rules,
             non_drug_protocol=SLEEP_PROTOCOL,
+        )
+    if indication == "fatigue":
+        rules.append("fatigue_non_pharm")
+        return CareEvaluationResult(
+            excluded_options=[],
+            recommendation=None,
+            escalate_to_physician=False,
+            urgency="routine",
+            rules_fired=rules,
+            non_drug_protocol=FATIGUE_PROTOCOL,
+        )
+    if indication == "appetite":
+        rules.append("appetite_non_pharm")
+        return CareEvaluationResult(
+            excluded_options=[],
+            recommendation=None,
+            escalate_to_physician=False,
+            urgency="routine",
+            rules_fired=rules,
+            non_drug_protocol=APPETITE_PROTOCOL,
+        )
+    if indication == "dehydration":
+        rules.append("dehydration_support")
+        return CareEvaluationResult(
+            excluded_options=[],
+            recommendation=None,
+            escalate_to_physician=False,
+            urgency="routine",
+            rules_fired=rules,
+            non_drug_protocol=DEHYDRATION_PROTOCOL,
+        )
+    if indication == "prurit":
+        rules.append("prurit_non_pharm")
+        return CareEvaluationResult(
+            excluded_options=[],
+            recommendation=None,
+            escalate_to_physician=False,
+            urgency="routine",
+            rules_fired=rules,
+            non_drug_protocol=PRURIT_PROTOCOL,
+        )
+    if indication == "brulure":
+        rules.append("brulure_non_pharm")
+        return CareEvaluationResult(
+            excluded_options=[],
+            recommendation=None,
+            escalate_to_physician=False,
+            urgency="routine",
+            rules_fired=rules,
+            non_drug_protocol=BRULURE_PROTOCOL,
+        )
+    if indication == "anxiety":
+        rules.append("anxiety_non_pharm")
+        return CareEvaluationResult(
+            excluded_options=[],
+            recommendation=None,
+            escalate_to_physician=False,
+            urgency="routine",
+            rules_fired=rules,
+            non_drug_protocol=ANXIETE_PROTOCOL,
+        )
+    if indication in {"toux", "vertigo", "congestion"}:
+        rules.append(f"{indication}_non_pharm")
+        protocol = (
+            "Repos, hydratation, air de la cabine si possible. "
+            "Pas d'antibiotique automatique. Si fievre haute, essoufflement ou douleur poitrine, dis-le."
+        )
+        return CareEvaluationResult(
+            excluded_options=[],
+            recommendation=None,
+            escalate_to_physician=False,
+            urgency="routine",
+            rules_fired=rules,
+            non_drug_protocol=protocol,
         )
 
     candidates = _candidate_drugs(db, indication)
