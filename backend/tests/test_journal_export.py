@@ -1,3 +1,20 @@
+def test_mimir_alert_appears_in_journal(client):
+    from app.services.mqtt_service import _on_message
+
+    class Incoming:
+        topic = "yggdrasil/mimir/security/infirmary"
+        payload = (
+            b'{"alert":"suricata_match","message":"Marqueur de test infirmerie"}'
+        )
+
+    _on_message(None, None, Incoming())
+    alerts = client.get("/api/security/alerts")
+    journal = client.get("/api/journal")
+    assert alerts.status_code == 200
+    assert any("Marqueur de test infirmerie" in str(row["payload"]) for row in alerts.json())
+    assert any(row["action"] == "mimir_alert" for row in journal.json())
+
+
 def test_journal_export_csv_and_pdf(client):
     confirmed = client.post(
         "/api/care/confirm",

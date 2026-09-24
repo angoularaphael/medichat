@@ -17,12 +17,27 @@ function formatDate(value: string) {
 export default function JournalPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const journal = useQuery({ queryKey: ["journal"], queryFn: api.journal });
+  const journal = useQuery({ queryKey: ["journal"], queryFn: api.journal, refetchInterval: 5000 });
   const alerts = useQuery({
     queryKey: ["security-alerts"],
     queryFn: api.securityAlerts,
     enabled: user?.role === "admin",
+    refetchInterval: 5000,
   });
+  const operations = [
+    ...(journal.data ?? []).map((entry) => ({
+      id: `decision-${entry.id}`,
+      at: entry.created_at,
+      title: entry.summary,
+      meta: entry.action.replace(/_/g, " "),
+    })),
+    ...(alerts.data ?? []).map((alert) => ({
+      id: `alert-${alert.id}`,
+      at: alert.created_at,
+      title: String(alert.payload.message || alert.payload.alert || "Alerte MIMIR"),
+      meta: "Alerte MIMIR",
+    })),
+  ].sort((left, right) => new Date(right.at).getTime() - new Date(left.at).getTime());
   const [exportError, setExportError] = useState("");
   const [exporting, setExporting] = useState<"csv" | "pdf" | null>(null);
 
@@ -76,7 +91,7 @@ export default function JournalPage() {
             <FileClock size={20} />
           </div>
           <div className="timeline">
-            {journal.data?.map((entry, index) => (
+            {operations.map((entry, index) => (
               <motion.article
                 key={entry.id}
                 initial={{ opacity: 0, x: -12 }}
@@ -84,14 +99,14 @@ export default function JournalPage() {
                 transition={{ delay: index * 0.05 }}
               >
                 <i />
-                <time>{formatDate(entry.created_at)}</time>
+                <time>{formatDate(entry.at)}</time>
                 <div>
-                  <strong>{entry.summary}</strong>
-                  <span>{entry.action.replace(/_/g, " ")}</span>
+                  <strong>{entry.title}</strong>
+                  <span>{entry.meta}</span>
                 </div>
               </motion.article>
             ))}
-            {!journal.data?.length && <p className="empty-copy">Aucune décision enregistrée pour cette session.</p>}
+            {!operations.length && <p className="empty-copy">Aucune décision enregistrée pour cette session.</p>}
           </div>
         </section>
 
