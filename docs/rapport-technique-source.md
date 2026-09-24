@@ -121,7 +121,8 @@ doivent être chiffrés avant mise en production et les règles cliniques doiven
 - React, TypeScript, Vite, React Query.
 - Python, FastAPI, Pydantic, SQLAlchemy.
 - PostgreSQL.
-- Ollama avec modèle léger local.
+- Ollama `llama3.2:3b` sur l'hôte : extraction dans un catalogue fermé, puis reformulation du JSON déjà décidé. Hors ligne, un texte modèle prend le relais.
+- Simulateur de veille Python (pas de sonde). Voix : synthèse du navigateur, pas Ollama.
 - Mosquitto MQTT.
 - Docker Compose.
 - Pytest.
@@ -158,7 +159,7 @@ Ajouter ici les éléments réels, sans inventer :
 - Prototype pédagogique, non certifié comme dispositif médical.
 - Compréhension du langage non garantie pour toute formulation.
 - Catalogue thérapeutique réduit.
-- Pas encore de mesures physiques SpO2, température ou fréquence cardiaque.
+- Constantes de veille simulées (température, SpO2, pouls, respiration). Aucune sonde physique n'est branchée.
 - Sources cliniques et protocoles botaniques à consolider.
 - Migrations et observabilité encore limitées pour une V1 industrielle.
 
@@ -166,7 +167,7 @@ Ajouter ici les éléments réels, sans inventer :
 
 Priorités :
 
-1. intégrer un capteur réel ou simulateur ESP32 signé ;
+1. brancher une sonde réelle sur le simulateur de veille déjà en place ;
 2. ajouter un dialogue de clarification avant toute recommandation ambiguë ;
 3. versionner la base avec Alembic et automatiser les sauvegardes ;
 4. produire des métriques de santé et un test de coupure d'Ollama/PostgreSQL ;

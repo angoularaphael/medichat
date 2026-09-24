@@ -50,10 +50,16 @@ decrit pas de fabrication de medicament.
 
 ## Veille
 
+Les constantes sont simulees. Voir [capteurs-et-ollama.md](./capteurs-et-ollama.md).
 `services/surveillance.py` score temperature, SpO2, pouls et respiration sans
-lire le chat. Quatre zones de deux places, registre de co-presence, et
-historique des dix dernieres minutes. Scenarios : nominal, fausse alerte,
-contamination, degradation lente.
+lire le chat ni Ollama. Quatre zones de deux places, registre de co-presence,
+et historique des dix dernieres minutes.
+
+## Ollama
+
+Deux appels HTTP vers le modele local `llama3.2:3b` : extraire des symptomes
+dans un catalogue ferme, puis reformuler le JSON du moteur de regles. Detail
+dans [capteurs-et-ollama.md](./capteurs-et-ollama.md).
 
 ## Securite du prototype
 
@@ -73,4 +79,4 @@ contamination, degradation lente.
 - Les decisions sont testees et tracees, mais les regles cliniques restent un
   catalogue de demonstration non valide par une autorite medicale.
 - Ameliorations V1 : migrations Alembic versionnees, metriques de sante,
-  sauvegarde automatisee, capteurs signes vitaux et validation clinique.
+  sauvegarde automatisee, sonde reelle a la place du simulateur, validation clinique.

@@ -20,7 +20,8 @@ decision, mais il ne prescrit jamais seul.
 - Lecture a voix haute des reponses, et message de bienvenue parle au debut
   de chaque nouvelle discussion. Le bouton Voix coupe ou relance la lecture.
 - Veille de 40 membres : constantes simulees, score separe du chat, zones de
-  quarantaine, contacts et courbe des dix dernieres minutes.
+  quarantaine, contacts et courbe des dix dernieres minutes. Voir
+  `docs/capteurs-et-ollama.md`.
 - Reponse distincte pour chaque symptome, avec options ecartees et raisons.
 - Profils equipage, allergies, traitements, authentification JWT et roles.
 - Identification faciale locale optionnelle et conversations persistantes.
@@ -35,7 +36,9 @@ decision, mais il ne prescrit jamais seul.
 ## Prerequis
 
 - Docker Desktop (Windows)
-- Optionnel : Ollama sur l hote (`llama3.2:3b` ou modele leger)
+- Optionnel : Ollama sur l hote (`llama3.2:3b`). Sans lui, les regles, la
+  veille et la voix du navigateur fonctionnent. Le chat affiche alors une
+  reponse modele. Detail : `docs/capteurs-et-ollama.md`.
 
 Pour activer la reformulation IA locale :
 

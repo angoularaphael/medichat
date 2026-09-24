@@ -38,17 +38,17 @@ molécule ; « mal de tête 3/10 depuis ce matin, sans vomissement » peut être
 
 ## Priorité 3 — preuve matérielle minimale
 
-Gain estimé : fort sur innovation/différenciation.
+Le simulateur de la page Veille est livré : 40 fiches, quatre constantes,
+score, zones et courbe. Il n'y a toujours pas de sonde branchée.
 
-Option réaliste :
+Suite possible :
 
-- ESP32 ou capteur simulé envoyant température et fréquence cardiaque sur MQTT ;
-- EIR affiche la dernière mesure avec horodatage et état « mesure simulée » ou
-  « capteur réel » ;
-- une température élevée devient un élément de contexte, pas une prescription
-  automatique.
+- ESP32 publiant température et pouls sur MQTT ;
+- EIR enregistre la mesure à côté du scénario, avec l'état « capteur réel » ;
+- une température élevée reste un contexte, pas une prescription.
 
-Un seul capteur bien intégré vaut mieux que plusieurs capteurs factices.
+Un seul capteur réel bien intégré complète le simulateur. Il ne le remplace
+pas dans la démo si le matériel manque.
 
 ## Priorité 4 — règles médicales versionnées et sourcées
 

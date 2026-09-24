@@ -3,7 +3,7 @@
 **Workshop national EPSI B3 — Horizon 2080**  
 **Pilier : HumanTech et HealthTech spatiales**  
 **Vaisseau : patch Yggdrasil (couplage avec MIMIR, pilier DeepTech)**  
-**Version : prototype V0.5 — mise à jour du 23 septembre 2026**
+**Version : prototype V0.6 — mise à jour du 24 septembre 2026**
 
 ---
 
@@ -51,6 +51,12 @@ Le cœur n’est pas « une IA qui prescrit », mais un **moteur de règles méd
     confort. Il ne décrit pas une fabrication (fermentation, extraction,
     purification). Détail : `docs/pharmacie-vivante.md`.
 11. **Journal des décisions** — historique horodaté pour audit.
+12. **Veille capteurs simulés** — 40 fiches, température, SpO2, pouls et
+    respiration générés par scénario. Score déterministe, zones de quarantaine
+    et contacts. Le chat et Ollama n'entrent pas dans ce calcul. Détail :
+    `docs/capteurs-et-ollama.md`.
+13. **Lecture vocale** — le navigateur lit le message de bienvenue et les
+    réponses. Ce n'est pas Ollama et ce n'est pas un capteur.
 
 ### 3.2 Flux principal (nominal)
 
@@ -95,23 +101,59 @@ EIR peut **écouter** une alerte MIMIR (données de stock falsifiées) pour mont
 
 ---
 
-## 4. Technologies envisagées
+## 4. Technologies retenues
+
+Le sprint ne laisse plus le choix ouvert entre Node et Python, ni entre React
+et Vue. La pile réellement livrée est celle-ci.
 
 | Couche | Technologie | Rôle |
 |--------|-------------|------|
-| Base de données | **PostgreSQL** | Patients, médicaments, stocks, journal, règles métier |
-| API / logique | **Node.js** ou **Python (FastAPI)** | Moteur de règles, simulateur SIR, API REST |
-| Interface | **React** (ou Vue) | Dashboard stock, triage, chat, crise |
-| IA interface | **Ollama** + modèle léger | Dialogue ; pas de décision médicale seule |
-| Moteur de règles | Code applicatif (JSON/YAML règles + tests) | Décisions explicables |
-| Bus vaisseau | **MQTT** (ex. Mosquitto) | Échange avec MIMIR / autres piliers |
-| Conteneurisation | **Docker Compose** | Reproductibilité labo, démo vendredi |
-| Monitoring (option) | Grafana + métriques custom | Stocks, autonomie, patients en attente |
-| Sécurité | Rôles DB, HTTPS local si reverse proxy | Données santé ; travail ASRBD |
+| Base de données | **PostgreSQL** | Patients, médicaments, stocks, journal, cultures, mesures simulées |
+| API / logique | **Python (FastAPI)** | Règles, crise, veille, pont Ollama, MQTT |
+| Interface | **React (Vite)** | Chat, stocks, crise, serre, page Veille |
+| IA locale | **Ollama**, modèle `llama3.2:3b` | Deux appels seulement : extraire des symptômes dans un catalogue fermé, puis reformuler le JSON déjà décidé |
+| Moteur de règles | **Python testé** | Allergies, interactions, stocks, urgences. Le modèle ne prescrit pas |
+| Capteurs | **Simulateur Python** | Pas de matériel. Scénarios dans `surveillance.py`, tables `watch_subjects` et `vital_samples` |
+| Voix | **Web Speech API** du navigateur | Lecture du message de bienvenue et des réponses. Indépendante d'Ollama |
+| Bus vaisseau | **MQTT (Mosquitto)** | Crise et stock bas vers MIMIR ; alerte infirmerie en retour |
+| Conteneurisation | **Docker Compose** | API, base, broker, interface. Ollama reste sur l'hôte |
+| Sécurité | **JWT, Argon2, rôles** | Données de démo ; secret à changer hors laboratoire |
 
-**À éviter pour le sprint :** ERP lourd (Dolibarr, etc.), dépendance à un matériel non validé par le coach.
+Grafana n'est pas branché. Un ERP type Dolibarr reste hors périmètre.
 
-**Référence données :** liste inspirée OMS médicaments essentiels (version réduite pour la démo) ; hypothèses de contagion et consommation documentées dans le dossier PDF final.
+### 4.1 Ollama, en pratique
+
+Ollama n'est pas le décideur. Le décideur est le moteur de règles, qui lit le
+profil, les interactions et le stock dans PostgreSQL.
+
+1. L'API envoie le message à `POST {OLLAMA_BASE_URL}/api/chat` avec
+   `format: json`. Le modèle ne peut ajouter qu'un libellé déjà présent dans
+   le catalogue de symptômes.
+2. Le moteur de règles produit un JSON (médicament écarté, dose, relais serre,
+   urgence).
+3. Un second appel demande à Ollama de reformuler ce JSON, sans molécule
+   nouvelle et sans mode opératoire de fabrication.
+4. Si l'hôte ne répond pas, l'extraction par règles et un texte modèle hors
+   ligne prennent le relais. Le dashboard passe de `rules+ollama` à
+   `rules-offline`.
+
+Variables : `OLLAMA_BASE_URL` (défaut `http://host.docker.internal:11434`),
+`OLLAMA_MODEL` (`llama3.2:3b`), `OLLAMA_EXTRACT_SYMPTOMS` (`true`).
+
+La voix parlée du chat n'utilise pas ce modèle. Détail complet :
+`docs/capteurs-et-ollama.md`.
+
+### 4.2 Capteurs simulés
+
+Les quatre constantes affichées en Veille sont écrites par le serveur au
+moment d'un scénario (nominal, fausse alerte, contamination 15 %, dégradation
+sur 10 minutes). Elles ne viennent pas d'un bus de capteurs. Le score et
+l'isolement sont calculés dans le code, puis stockés. Medichat ne peut pas
+les modifier.
+
+**Référence données :** liste inspirée OMS médicaments essentiels (version
+réduite pour la démo). Les seuils de veille sont une convention de
+démonstration, pas une validation clinique.
 
 ---
 
@@ -199,17 +241,24 @@ T10 |Deux patients même médicament stock faible | Priorisation triage
 ## 8. Architecture logique (schéma)
 
 ```
-[Astronaute] -> [UI React : Chat + Dashboard]
+[Astronaute] -> [UI React : Chat + Veille + Dashboard]
                       |
                       v
-              [API EIR : règles + SIR + triage]
-                 /    |     \
-                v     v      v
-         [PostgreSQL] [Ollama] [MQTT client]
-                              |
-                              v
-                    [Bus Yggdrasil / MIMIR]
+              [API FastAPI]
+              /    |      \
+             v     v       v
+     [Moteur de regles] [Veille simulee] [MQTT]
+             |              |
+             v              v
+          [Ollama]     [PostgreSQL]
+          optionnel    mesures, stocks, dossiers
+             |
+             v
+     [Bus Yggdrasil / MIMIR]
 ```
+
+Ollama ne voit que le message (extraction) puis le JSON du moteur (reformulation).
+La veille n'appelle pas Ollama.
 
 ---
 
@@ -218,15 +267,16 @@ T10 |Deux patients même médicament stock faible | Priorisation triage
 | Risque | Parade |
 |--------|--------|
 | LLM invente un traitement | Le LLM ne lit que la sortie du moteur de règles ; pas de prescription libre |
-| Démo Ollama lente | Réponses courtes ; cache ; scénarios scriptés en secours |
-| Scope trop large avec MIMIR | Gel des bonus EIR si retard ; prioriser indispensable |
+| Démo Ollama lente ou absente | Timeout court, puis texte modèle hors ligne. La veille et les stocks continuent |
+| Capteurs pris pour du matériel réel | L'interface et la doc disent « mesures synthétiques ». Aucune sonde n'est branchée |
 | Jury médical sceptique | Vocabulaire « aide à la décision », cas de test, règles affichables |
 
 ---
 
 ## 10. Évolutions V1 (après workshop)
 
-- Intégration capteurs réels (SpO2, température) type MedBox.
+- Capteurs réels (SpO2, température) sur MQTT. Le simulateur de la page Veille
+  est déjà en place ; il manque seulement la source matérielle.
 - Modèle SIR calibré sur données ESA / littérature.
 - Synchronisation OfflineSpace (file d’attente sync Terre).
 - Multi-langue équipage.
@@ -238,6 +288,8 @@ T10 |Deux patients même médicament stock faible | Priorisation triage
 - [x] Pilier HealthTech et positionnement aide à la décision.
 - [x] Docker, PostgreSQL, Mosquitto et fallback sans Ollama.
 - [x] Moteur de règles, profils, conversations, stocks, crise et cultures.
+- [x] Veille : 40 fiches, score séparé du chat, zones et scénarios.
+- [x] Ollama optionnel : extraction catalogue fermé et reformulation du JSON.
 - [x] Contrat MQTT MIMIR implémenté côté EIR.
 - [x] Tests automatisés backend (59 réussis au 23 septembre 2026).
 - [ ] Rapport final exporté en PDF au nom réglementaire.

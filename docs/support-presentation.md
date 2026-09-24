@@ -44,8 +44,8 @@ Message équipage
 
 À dire :
 
-- Ollama comprend et reformule.
-- Le moteur déterministe décide.
+- Ollama extrait des symptômes dans un catalogue fermé, puis reformule le JSON déjà décidé. Il ne prescrit pas.
+- Le moteur déterministe décide. Les constantes de la Veille sont simulées et ne passent pas par Ollama.
 - La base fournit profil, interactions, stock et cultures.
 - L'humain confirme.
 
@@ -94,7 +94,8 @@ Limites assumées :
 
 - prototype non médicalement certifié ;
 - catalogue réduit ;
-- validation clinique et capteurs à ajouter.
+- constantes simulées, pas encore de sonde branchée ;
+- validation clinique encore à faire.
 
 Dire les limites augmente la crédibilité : ne jamais présenter le projet comme
 un médecin autonome.
