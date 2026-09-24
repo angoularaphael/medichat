@@ -7,6 +7,11 @@ export const PLANT_PHOTOS: Record<string, string> = {
   salix: "/plants/salix.png",
   oryza: "/plants/oryza.png",
   zingiber: "/plants/zingiber.png",
+  aloe: "/plants/aloe.png",
+  calendula: "/plants/calendula.png",
+  plantago: "/plants/plantago.png",
+  matricaria: "/plants/matricaria.png",
+  cinchona: "/plants/cinchona.png",
 };
 
 export function plantPhoto(code: string): string | undefined {

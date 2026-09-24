@@ -48,11 +48,91 @@ export function primeSpeech(): void {
   window.speechSynthesis.resume();
 }
 
+const SPEECH_REPLACEMENTS: Array<[RegExp, string]> = [
+  [/Matricaria chamomilla/gi, "camomille"],
+  [/Cinchona officinalis/gi, "quinquina"],
+  [/Plantago major/gi, "plantain"],
+  [/Artemisia annua/gi, "armoise"],
+  [/Calendula officinalis/gi, "souci"],
+  [/Aloe vera/gi, "aloès"],
+  [/10-15 min/gi, "dix à quinze minutes"],
+  [/\bcalendula\b/gi, "souci"],
+  [/\baloes\b/gi, "aloès"],
+  [/\bpenicillium\b/gi, "pénicillium"],
+  [/\bparacetamol\b/gi, "paracétamol"],
+  [/\bibuprofene\b/gi, "ibuprofène"],
+  [/\bibuprofen\b/gi, "ibuprofène"],
+  [/\bondansetron\b/gi, "ondansétron"],
+  [/\bmeclizine\b/gi, "méclizine"],
+  [/\bloperamide\b/gi, "lopéramide"],
+  [/\bomeprazole\b/gi, "oméprazole"],
+  [/\bazithromycine\b/gi, "azithromycine"],
+  [/\bamoxicilline\b/gi, "amoxicilline"],
+  [/\bwarfarine\b/gi, "warfarine"],
+  [/\brehydration\b/gi, "réhydratation"],
+  [/\bdeshydratation\b/gi, "déshydratation"],
+  [/\bYggdrasil\b/gi, "Igdrassil"],
+  [/\bOllama\b/gi, "Olama"],
+  [/\bMQTT\b/g, "M. Q. T. T."],
+  [/\bSpO2\b/gi, "saturation"],
+  [/\bAINS\b/g, "anti-inflammatoires"],
+  [/\bEIR\b/g, "E. I. R."],
+  [/\bJSON\b/g, "décision"],
+  [/\bmg\b/gi, "milligrammes"],
+  [/\bprecisement\b/gi, "précisément"],
+  [/\bprecis\b/gi, "précis"],
+  [/\birritee\b/gi, "irritée"],
+  [/\bdecoction\b/gi, "décoction"],
+  [/\bsommites\b/gi, "sommités"],
+  [/\bmedicament\b/gi, "médicament"],
+  [/\bmedicaux\b/gi, "médicaux"],
+  [/\bmedicale\b/gi, "médicale"],
+  [/\bmedical\b/gi, "médical"],
+  [/\bdemangeaisons\b/gi, "démangeaisons"],
+  [/\bintensite\b/gi, "intensité"],
+  [/\bappetit\b/gi, "appétit"],
+  [/\bregulierement\b/gi, "régulièrement"],
+  [/\bnausees\b/gi, "nausées"],
+  [/\bdiarrhee\b/gi, "diarrhée"],
+  [/\bbrulure\b/gi, "brûlure"],
+  [/\bfievre\b/gi, "fièvre"],
+  [/\btiede\b/gi, "tiède"],
+  [/\bserieux\b/gi, "sérieux"],
+  [/\bepisode\b/gi, "épisode"],
+  [/\bevolue\b/gi, "évolue"],
+  [/\bgorgees\b/gi, "gorgées"],
+  [/\bassocies\b/gi, "associés"],
+  [/\bassociee\b/gi, "associée"],
+  [/\banalgesique\b/gi, "analgésique"],
+  [/\bdefaut\b/gi, "défaut"],
+  [/\becrans\b/gi, "écrans"],
+  [/\blegere\b/gi, "légère"],
+  [/\bmolecule\b/gi, "molécule"],
+  [/\bverifie\b/gi, "vérifie"],
+  [/\brepondre\b/gi, "répondre"],
+  [/\bdecris\b/gi, "décris"],
+  [/\btete\b/gi, "tête"],
+  [/\bca\b/gi, "ça"],
+  [/dis-moi ou\b/gi, "dis-moi où"],
+];
+
+export function prepareSpeech(text: string): string {
+  let spoken = text;
+  for (const [pattern, replacement] of SPEECH_REPLACEMENTS) {
+    spoken = spoken.replace(pattern, replacement);
+  }
+  return spoken.replace(/\s+/g, " ").trim();
+}
+
 function frenchVoice(): SpeechSynthesisVoice | null {
   const voices = window.speechSynthesis.getVoices();
-  return (
-    voices.find((voice) => voice.lang.toLowerCase().startsWith("fr")) ?? null
-  );
+  const french = voices.filter((voice) => voice.lang.toLowerCase().startsWith("fr"));
+  const preferred = ["hortense", "denise", "julie", "audrey", "thomas", "paul"];
+  for (const name of preferred) {
+    const match = french.find((voice) => voice.name.toLowerCase().includes(name));
+    if (match) return match;
+  }
+  return french[0] ?? null;
 }
 
 export function speak(text: string, hooks?: SpeakHooks): void {
@@ -60,7 +140,7 @@ export function speak(text: string, hooks?: SpeakHooks): void {
     hooks?.onEnd?.();
     return;
   }
-  const clean = text.replace(/\s+/g, " ").trim();
+  const clean = prepareSpeech(text);
   if (!clean) {
     hooks?.onEnd?.();
     return;
@@ -77,7 +157,7 @@ export function speak(text: string, hooks?: SpeakHooks): void {
     if (mine !== generation) return;
     const utterance = new SpeechSynthesisUtterance(clean);
     utterance.lang = "fr-FR";
-    utterance.rate = 1;
+    utterance.rate = 0.92;
     const voice = frenchVoice();
     if (voice) utterance.voice = voice;
     utterance.onstart = () => {
