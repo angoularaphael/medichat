@@ -3,6 +3,7 @@ import { ArrowRight, Camera, Eye, EyeOff, Orbit, Scan, ShieldCheck } from "lucid
 import { FormEvent, lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
+import ArrivalIntro from "../components/ArrivalIntro";
 import { faceDescriptorFromSource } from "../face/descriptor";
 
 const crew = ["raphael", "elisa", "elsa", "jovani", "carine"];
@@ -18,6 +19,7 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [cameraOn, setCameraOn] = useState(false);
+  const [introDone, setIntroDone] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
@@ -86,6 +88,7 @@ export default function LoginPage() {
 
   return (
     <div className="login-page">
+      {!introDone && <ArrivalIntro onDone={() => setIntroDone(true)} />}
       <div className="star-layer stars-a" aria-hidden="true" />
       <div className="star-layer stars-b" aria-hidden="true" />
       <Suspense fallback={<div className="space-fallback" aria-hidden="true" />}>
