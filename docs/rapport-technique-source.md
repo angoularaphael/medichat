@@ -110,7 +110,8 @@ essentiels fonctionnent sur le réseau local.
 - Journal horodaté des décisions et consommations.
 - Mode dégradé sans Ollama.
 - Base et broker locaux persistants.
-- 59 tests backend réussis au 23 septembre 2026.
+- 71 tests backend collectés au 24 septembre 2026 (veille, pharmacie vivante,
+  règles et crise).
 
 Limites : les secrets de démonstration doivent être remplacés, les échanges
 doivent être chiffrés avant mise en production et les règles cliniques doivent
@@ -137,6 +138,8 @@ Scénario principal :
    provenant de la base.
 4. Une rupture totale des médicaments force le relais local.
 5. Une crise 15 % déclenche triage et calcul d'autonomie.
+6. Page Veille : 40 fiches, scénario contamination, zones et courbe sans lien
+   avec le chat.
 
 Scénario de sécurité :
 
@@ -146,13 +149,44 @@ Scénario de sécurité :
 
 ## 8. Organisation du sprint
 
-Ajouter ici les éléments réels, sans inventer :
+### 8.1 Répartition des responsabilités (à compléter par l'équipe)
 
-- répartition nominative des responsabilités ;
-- captures ou export du Kanban ;
-- décisions prises à chaque revue ;
-- difficultés rencontrées et correctifs ;
-- contribution individuelle vérifiable dans Git.
+Remplir avant export PDF : numéro de groupe, noms, rôle réel (backend, front,
+règles, démo, doc, MQTT/MIMIR). L'historique Git sur
+`https://github.com/angoularaphael/medichat` permet de corroborer qui a touché
+quels modules.
+
+### 8.2 Kanban et revues (à compléter)
+
+- Insérer une capture du Kanban J1 à J5.
+- Noter les décisions de revue : gel du périmètre bonus si retard ; priorité
+  chat + règles + crise avant polish ; ajout veille et voix après analyse du
+  dossier MedBox concurrent.
+
+### 8.3 Difficultés rencontrées et correctifs
+
+| Difficulté | Impact | Correctif retenu |
+|------------|--------|------------------|
+| Périmètre double (EIR + cahier MIMIR sur `space-net` vide) | Retard documentation réseau | Cahier dev MIMIR et contrat MQTT écrits ; EIR publie crise/stock bas, file `offline_outbox.jsonl` si broker absent |
+| Pharmacie vivante vs risque de « recette » de médicament | Crédibilité jury et sécurité | Origine botanique/microbienne + relais de confort uniquement ; souches « référence » non incubables ; prompts Ollama et tests qui refusent fermentation/extraction |
+| Pas de capteurs matériels fournis | Impossible de démo hardware type MedBox | Simulateur `surveillance.py` : 40 sujets, score déterministe, zones Q1–Q4, scénarios nominal / fausse alerte / contamination / dégradation lente ; chat et Ollama exclus du score |
+| Séparation chat / constantes (exigence MedBox) | Risque de mélanger LLM et priorité vitale | API veille dédiée ; tests qui prouvent que `evaluate` chat ne modifie pas les sujets |
+| MQTT refusé si Mosquitto arrêté (Windows) | Logs d'erreur au démarrage API | Docker Compose avec broker ; messages mis en file et rejoués à la reconnexion |
+| Ollama lent ou absent | Démo instable | Timeouts courts ; mode `rules-offline` et texte modèle ; dashboard affiche l'état ; démo soutenance prévue sans dépendre d'Ollama |
+| Voix navigateur (autoplay, Chrome) | Bienvenue silencieuse au chargement | `primeSpeech` au clic ; bouton Écouter ; délai après `cancel` ; voix fr-FR si installée |
+| Dates SQLite naïves vs fuseau sur courbe veille | Erreur ou courbe vide | Filtrage des 10 dernières minutes corrigé côté Python |
+| Documentation décalée du code (stack « envisagée ») | Jury mal informé | Cahier V0.6, `docs/capteurs-et-ollama.md`, rapport et README alignés sur FastAPI/React/PostgreSQL |
+| Environnement Windows (ports Vite, pytest long) | Friction dev | Un seul `docker compose up` pour la démo ; tests regroupés en CI locale avant push |
+
+Ce que le projet **n'a pas** fait : entraîner un réseau de neurones. Le modèle
+`llama3.2:3b` est pré-entraîné ; l'équipe a construit le moteur de règles, les
+garde-fous et l'orchestration (catalogue fermé, JSON décisionnel, repli hors
+ligne).
+
+### 8.4 Contributions individuelles (à compléter)
+
+Pour chaque membre : modules principaux, commits ou PR, partie de la démo
+soutenance. Ne pas attribuer du travail non vérifiable dans Git.
 
 ## 9. Limites assumées
 

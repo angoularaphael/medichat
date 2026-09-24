@@ -75,7 +75,7 @@ React -> FastAPI -> PostgreSQL
 Preuves à afficher :
 
 - fonctionnement hors ligne ;
-- 59 tests backend ;
+- 71 tests backend (dont veille et pharmacie vivante) ;
 - authentification et rôles ;
 - journal d'audit ;
 - fallback sans Ollama ;
