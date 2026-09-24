@@ -1,10 +1,9 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Camera, ImagePlus, Save, Scan, Trash2, UserRound } from "lucide-react";
-import { Link, Navigate, useParams } from "react-router-dom";
+import { Camera, ImagePlus, Save, Trash2, UserRound } from "lucide-react";
+import { Navigate, useParams } from "react-router-dom";
 import { api } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
-import { captureFaceSamples } from "../face/descriptor";
 
 const SUGGESTED = ["paracetamol", "ibuprofen", "AINS", "smecta", "amoxicillin", "azithromycin"];
 
@@ -38,30 +37,19 @@ export default function ProfilePage() {
   const queryClient = useQueryClient();
   const target = code || user?.crew_member_code || "";
   const canEdit = user?.role === "admin" || user?.crew_member_code === target;
-  const isAdmin = user?.role === "admin";
 
   const profile = useQuery({
     queryKey: ["crew-member", target],
     queryFn: () => api.crewMember(target),
     enabled: Boolean(target) && canEdit,
   });
-  const crew = useQuery({
-    queryKey: ["crew"],
-    queryFn: api.crew,
-    enabled: isAdmin,
-  });
-
   const [allergies, setAllergies] = useState<string[]>([]);
   const [draft, setDraft] = useState("");
   const [avatar, setAvatar] = useState<string | null>(null);
   const [cameraOn, setCameraOn] = useState(false);
-  const [faceCameraOn, setFaceCameraOn] = useState(false);
   const [error, setError] = useState("");
-  const [faceStatus, setFaceStatus] = useState("");
   const videoRef = useRef<HTMLVideoElement>(null);
-  const faceVideoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const faceStreamRef = useRef<MediaStream | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -73,7 +61,6 @@ export default function ProfilePage() {
   useEffect(() => {
     return () => {
       streamRef.current?.getTracks().forEach((track) => track.stop());
-      faceStreamRef.current?.getTracks().forEach((track) => track.stop());
     };
   }, []);
 
@@ -84,14 +71,6 @@ export default function ProfilePage() {
     video.srcObject = stream;
     void video.play().catch(() => undefined);
   }, [cameraOn]);
-
-  useEffect(() => {
-    const video = faceVideoRef.current;
-    const stream = faceStreamRef.current;
-    if (!faceCameraOn || !video || !stream) return;
-    video.srcObject = stream;
-    void video.play().catch(() => undefined);
-  }, [faceCameraOn]);
 
   async function startCamera() {
     setError("");
@@ -112,28 +91,6 @@ export default function ProfilePage() {
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
     setCameraOn(false);
-  }
-
-  async function startFaceCamera() {
-    setError("");
-    setFaceStatus("");
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user", width: 480, height: 480 },
-        audio: false,
-      });
-      faceStreamRef.current = stream;
-      setFaceCameraOn(true);
-      if (faceVideoRef.current) faceVideoRef.current.srcObject = stream;
-    } catch {
-      setError("Camera inaccessible pour la reconnaissance faciale.");
-    }
-  }
-
-  function stopFaceCamera() {
-    faceStreamRef.current?.getTracks().forEach((track) => track.stop());
-    faceStreamRef.current = null;
-    setFaceCameraOn(false);
   }
 
   async function captureFrame() {
@@ -183,39 +140,6 @@ export default function ProfilePage() {
     },
   });
 
-  const enrollFace = useMutation({
-    mutationFn: async () => {
-      const video = faceVideoRef.current;
-      if (!video) throw new Error("Camera faciale indisponible");
-      setFaceStatus("Capture de 4 echantillons...");
-      const samples = await captureFaceSamples(video, 4, 180);
-      return api.enrollFace(target, samples);
-    },
-    onSuccess: async (result) => {
-      stopFaceCamera();
-      setFaceStatus(`Reconnaissance faciale enregistree (${result.samples} echantillons).`);
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["crew"] }),
-        queryClient.invalidateQueries({ queryKey: ["crew-member", target] }),
-      ]);
-    },
-    onError: (caught) => {
-      setFaceStatus("");
-      setError(caught instanceof Error ? caught.message : "Enregistrement facial impossible");
-    },
-  });
-
-  const clearFace = useMutation({
-    mutationFn: () => api.clearFace(target),
-    onSuccess: async () => {
-      setFaceStatus("Reconnaissance faciale effacee.");
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["crew"] }),
-        queryClient.invalidateQueries({ queryKey: ["crew-member", target] }),
-      ]);
-    },
-  });
-
   function onSubmit(event: FormEvent) {
     event.preventDefault();
     if (draft.trim()) addAllergy(draft);
@@ -230,7 +154,7 @@ export default function ProfilePage() {
         <div>
           <span className="eyebrow">Identite / Dossier de bord</span>
           <h1>Profil equipage</h1>
-          <p>Photo, camera, allergies et reconnaissance faciale. Medichat s'en sert pour ecarter les molecules dangereuses.</p>
+          <p>Photo, camera et allergies. Medichat s'en sert pour ecarter les molecules dangereuses.</p>
         </div>
       </div>
 
@@ -323,53 +247,6 @@ export default function ProfilePage() {
         </section>
       </form>
 
-      {isAdmin && (
-        <section className="glass-panel face-enroll">
-          <div className="section-heading">
-            <h2>Reconnaissance faciale</h2>
-            <p>
-              Raphael configure les identites de tout l'equipage. Empreinte 32x32 locale,
-              jamais de photo dans la table reconnaissance_faciale.
-            </p>
-          </div>
-          <p className="face-target">Cible: {profile.data?.full_name ?? target}</p>
-          {faceCameraOn && (
-            <video ref={faceVideoRef} className="face-preview" autoPlay playsInline muted />
-          )}
-          <div className="profile-photo-actions">
-            {faceCameraOn ? (
-              <>
-                <button type="button" onClick={() => enrollFace.mutate()} disabled={enrollFace.isPending}>
-                  <Scan size={16} /> {enrollFace.isPending ? "Capture..." : "Enregistrer le visage"}
-                </button>
-                <button type="button" onClick={stopFaceCamera}>Eteindre</button>
-              </>
-            ) : (
-              <button type="button" onClick={startFaceCamera}>
-                <Camera size={16} /> Filmer pour Face ID
-              </button>
-            )}
-            {profile.data?.face_enrolled && (
-              <button type="button" className="danger-ghost" onClick={() => clearFace.mutate()} disabled={clearFace.isPending}>
-                <Trash2 size={16} /> Effacer Face ID
-              </button>
-            )}
-          </div>
-          <p>{profile.data?.face_enrolled ? `${profile.data.face_samples} echantillon(s) enregistres` : "Aucun visage enregistre pour ce profil"}</p>
-          {faceStatus && <p className="form-ok">{faceStatus}</p>}
-
-          {crew.data && (
-            <div className="crew-face-list">
-              {crew.data.map((member) => (
-                <Link key={member.code} to={`/profil/${member.code}`} className={member.code === target ? "selected" : ""}>
-                  <strong>{member.full_name}</strong>
-                  <span>{member.face_enrolled ? "Enrole" : "A configurer"}</span>
-                </Link>
-              ))}
-            </div>
-          )}
-        </section>
-      )}
     </div>
   );
 }

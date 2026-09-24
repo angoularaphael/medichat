@@ -24,7 +24,6 @@ from app.schemas.api import (
     ConversationCreate,
     CrisisTriggerResponse,
     DecisionLogEntry,
-    FaceDescriptorsBody,
     ProfileUpdate,
     SecurityAlertOut,
     TriageEntry,
@@ -35,7 +34,6 @@ from app.services import (
     bacteria,
     conversations,
     crisis,
-    face_id,
     journal,
     log_export,
     message_understanding,
@@ -92,8 +90,7 @@ def system_status(db: Annotated[Session, Depends(get_db)]):
     }
 
 
-def _crew_payload(member: CrewMember, face_counts: dict[str, int] | None = None) -> dict:
-    counts = face_counts or {}
+def _crew_payload(member: CrewMember) -> dict:
     return {
         "code": member.code,
         "full_name": member.full_name,
@@ -101,16 +98,13 @@ def _crew_payload(member: CrewMember, face_counts: dict[str, int] | None = None)
         "allergies": member.allergies or [],
         "health_status": member.health_status.value,
         "avatar_data": member.avatar_data,
-        "face_enrolled": counts.get(member.code, 0) > 0,
-        "face_samples": counts.get(member.code, 0),
     }
 
 
 @router.get("/crew")
 def list_crew(db: Session = Depends(get_db)):
     members = db.query(CrewMember).order_by(CrewMember.id).all()
-    counts = face_id.list_enrollments(db)
-    return [_crew_payload(member, counts) for member in members]
+    return [_crew_payload(member) for member in members]
 
 
 @router.get("/crew/{code}")
@@ -123,7 +117,7 @@ def get_crew_member(
     member = db.query(CrewMember).filter(CrewMember.code == code).first()
     if not member:
         raise HTTPException(404, "Profil equipage inconnu")
-    return _crew_payload(member, face_id.list_enrollments(db))
+    return _crew_payload(member)
 
 
 @router.patch("/crew/{code}/profile")
@@ -162,7 +156,7 @@ def update_crew_profile(
         crew_member_id=member.id,
         payload={"allergies": member.allergies},
     )
-    return _crew_payload(member, face_id.list_enrollments(db))
+    return _crew_payload(member)
 
 
 @router.get("/drugs")
@@ -236,50 +230,6 @@ def care_confirm(
         stock_snapshot={drug.code: {"before": before, "after": drug.stock_units}},
     )
     return {"ok": True, "stock_remaining": drug.stock_units}
-
-
-@router.post("/crew/{code}/face")
-def enroll_face(
-    code: str,
-    body: FaceDescriptorsBody,
-    db: Annotated[Session, Depends(get_db)],
-    admin: Annotated[User, Depends(require_admin)],
-):
-    member = db.query(CrewMember).filter(CrewMember.code == code).first()
-    if not member:
-        raise HTTPException(404, "Profil equipage inconnu")
-    try:
-        count = face_id.replace_enrollments(db, code, body.descriptors, admin.username)
-    except ValueError as error:
-        raise HTTPException(400, str(error)) from error
-    journal.log_decision(
-        db,
-        action="face_enroll",
-        summary=f"Reconnaissance faciale enregistree pour {member.full_name}",
-        crew_member_id=member.id,
-        payload={"samples": count, "enrolled_by": admin.username},
-    )
-    return {"ok": True, "samples": count, "crew_member_code": code}
-
-
-@router.delete("/crew/{code}/face")
-def clear_face(
-    code: str,
-    db: Annotated[Session, Depends(get_db)],
-    admin: Annotated[User, Depends(require_admin)],
-):
-    member = db.query(CrewMember).filter(CrewMember.code == code).first()
-    if not member:
-        raise HTTPException(404, "Profil equipage inconnu")
-    face_id.clear_enrollments(db, code)
-    journal.log_decision(
-        db,
-        action="face_clear",
-        summary=f"Reconnaissance faciale effacee pour {member.full_name}",
-        crew_member_id=member.id,
-        payload={"cleared_by": admin.username},
-    )
-    return {"ok": True, "crew_member_code": code}
 
 
 @router.get("/conversations")

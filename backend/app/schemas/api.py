@@ -89,19 +89,6 @@ class ChatMessageResponse(BaseModel):
     llm_mode: str = "template"
 
 
-class FaceLoginRequest(BaseModel):
-    descriptor: list[float]
-
-
-class FaceEnrollRequest(BaseModel):
-    crew_member_code: str
-    descriptors: list[list[float]] = Field(min_length=1, max_length=8)
-
-
-class FaceDescriptorsBody(BaseModel):
-    descriptors: list[list[float]] = Field(min_length=1, max_length=8)
-
-
 class ConversationCreate(BaseModel):
     crew_member_code: str
 

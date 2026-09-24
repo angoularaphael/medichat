@@ -65,8 +65,6 @@ export type CrewMember = {
   allergies: string[];
   health_status: string;
   avatar_data?: string | null;
-  face_enrolled?: boolean;
-  face_samples?: number;
 };
 
 export type Drug = {
@@ -257,23 +255,7 @@ export const api = {
       },
       false
     ),
-  loginFace: (descriptor: number[]) =>
-    request<LoginResponse>(
-      "/api/auth/face",
-      {
-        method: "POST",
-        body: JSON.stringify({ descriptor }),
-      },
-      false
-    ),
   me: () => request<AuthUser>("/api/auth/me"),
-  enrollFace: (code: string, descriptors: number[][]) =>
-    request<{ ok: boolean; samples: number }>(`/api/crew/${code}/face`, {
-      method: "POST",
-      body: JSON.stringify({ descriptors }),
-    }),
-  clearFace: (code: string) =>
-    request<{ ok: boolean }>(`/api/crew/${code}/face`, { method: "DELETE" }),
   conversations: (status = "open") =>
     request<Conversation[]>(`/api/conversations?status=${encodeURIComponent(status)}`),
   createConversation: (crew_member_code: string) =>
