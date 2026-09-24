@@ -88,6 +88,12 @@ LAST_RESORT_WATCH = (
     "Si ca s'aggrave vraiment (gene a respirer, douleur dans la poitrine, malaise): "
     "isolement cabine medicale. C'est le dernier recours, pas la reponse par defaut."
 )
+BLOOD_REPORTED = (
+    "Oui, j'ai bien lu : il y a du sang.\n\n"
+    "On arrete le riz et les gestes simples. Ce n'est plus une diarrhee legere.\n\n"
+    "Reste au calme, bois par petites gorgees, et previens tout de suite un coequipier.\n\n"
+    "Si le sang est beaucoup, si tu vomis du sang, ou si tu te sens faible, dis-le moi tout de suite."
+)
 SYMPTOMS_CLARIFY = (
     "Je n'ai pas compris ce qui ne va pas.\n\n"
     "Dis-moi ou tu as mal, ou si tu as de la fievre, mal au ventre, ou du mal a dormir.\n\n"
@@ -510,6 +516,23 @@ def evaluate_care(
             urgency="critical",
             rules_fired=rules,
             non_drug_protocol=ONBOARD_EMERGENCY,
+        )
+
+    if any(str(item).lower().strip() == "sang" for item in symptoms):
+        rules.append("blood_reported")
+        protocol = BLOOD_REPORTED
+        if _takes_blood_thinner(member):
+            protocol += (
+                "\n\nTu prends deja un medicament qui fluidifie le sang. "
+                "Previens un coequipier tout de suite."
+            )
+        return CareEvaluationResult(
+            excluded_options=[],
+            recommendation=None,
+            escalate_to_physician=False,
+            urgency="urgent",
+            rules_fired=rules,
+            non_drug_protocol=protocol,
         )
 
     if not symptoms or not any(str(s).strip() for s in symptoms):

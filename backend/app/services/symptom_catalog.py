@@ -120,6 +120,14 @@ ROUTINE_PATTERNS: list[tuple[re.Pattern[str], str]] = [
         "nausee",
     ),
     (re.compile(r"diarrh[ée]e|selles liquides|gastro", re.I), "diarrhee"),
+    (
+        re.compile(
+            r"\bdu sang\b|y a du sang|il y a du sang|j[' ]ai du sang|"
+            r"sang dans|selles?.*(avec|de) sang|saignement",
+            re.I,
+        ),
+        "sang",
+    ),
     (re.compile(r"constip|pas de selle|ventre bloqu", re.I), "constipation"),
     (re.compile(r"reflux|br[uû]lure d[' ]estomac|aigreur", re.I), "reflux"),
     (re.compile(r"mal de dos|lombalgie|dorsalgie|courbature", re.I), "mal de dos"),

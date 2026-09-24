@@ -344,6 +344,41 @@ async def chat_message(
         conversation = conversations.create_conversation(db, user.username, body.crew_member_code)
 
     history = conversations.history_text(db, conversation.id)
+    heard = ollama_client.reply_to_what_i_asked(history, body.message)
+    if heard:
+        evaluation = CareEvaluationResult(
+            non_drug_protocol=heard,
+            needs_clarification=False,
+            urgency="routine",
+            rules_fired=["heard_followup"],
+        )
+        db.add(
+            ChatMessage(
+                session_id=conversation.id,
+                conversation_id=conversation.id,
+                role="user",
+                content=body.message,
+            )
+        )
+        db.add(
+            ChatMessage(
+                session_id=conversation.id,
+                conversation_id=conversation.id,
+                role="assistant",
+                content=heard,
+                meta={"llm_mode": "rules", "evaluation": evaluation.model_dump()},
+            )
+        )
+        conversations.touch_title(db, conversation, body.message)
+        db.commit()
+        return ChatMessageResponse(
+            session_id=conversation.id,
+            conversation_id=conversation.id,
+            role="assistant",
+            content=heard,
+            evaluation=evaluation,
+            llm_mode="rules",
+        )
     if ollama_client.is_feeling_better(body.message):
         content = ollama_client.feeling_better_reply()
         evaluation = CareEvaluationResult(

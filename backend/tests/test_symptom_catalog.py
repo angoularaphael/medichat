@@ -19,6 +19,12 @@ def test_isolation_convulsion():
     assert check_isolation(symptoms)[0] is True
 
 
+def test_blood_in_stool_is_not_full_isolation():
+    symptoms = labels_from_text("il y a du sang")
+    assert "sang" in symptoms
+    assert check_isolation(symptoms)[0] is False
+
+
 def test_isolation_hemorrhage():
     symptoms = labels_from_text("je vomis du sang")
     assert "hemorragie severe" in symptoms

@@ -164,3 +164,80 @@ def test_feeling_better_gets_a_clear_reply(client, monkeypatch):
     assert "Decris plus precisement" not in content
     assert "\n\n" in content
 
+
+def test_blood_answer_is_understood(client, monkeypatch):
+    monkeypatch.setattr(
+        ollama_client,
+        "reformulate_with_ollama",
+        _template_response,
+    )
+    client.post("/api/demo/force-stock-zero/smecta")
+    client.post("/api/demo/force-stock-zero/ors")
+    client.post("/api/demo/force-stock-zero/loperamide")
+    first = client.post(
+        "/api/chat/message",
+        json={"crew_member_code": "raphael", "message": "J'ai la diarrhee"},
+    )
+    assert first.status_code == 200
+    assert "sang" in first.json()["content"].lower()
+    second = client.post(
+        "/api/chat/message",
+        json={
+            "crew_member_code": "raphael",
+            "conversation_id": first.json()["conversation_id"],
+            "message": "il y a du sang",
+        },
+    )
+    assert second.status_code == 200
+    content = second.json()["content"]
+    assert "n'ai pas compris" not in content
+    assert "il y a du sang" in content.lower()
+    assert "coequipier" in content.lower()
+
+
+def test_short_answers_follow_the_question(client, monkeypatch):
+    monkeypatch.setattr(
+        ollama_client,
+        "reformulate_with_ollama",
+        _template_response,
+    )
+    client.post("/api/demo/force-stock-zero/smecta")
+    client.post("/api/demo/force-stock-zero/ors")
+    client.post("/api/demo/force-stock-zero/loperamide")
+    first = client.post(
+        "/api/chat/message",
+        json={"crew_member_code": "elsa", "message": "J'ai la diarrhee"},
+    )
+    assert first.status_code == 200
+    conversation_id = first.json()["conversation_id"]
+
+    fever = client.post(
+        "/api/chat/message",
+        json={
+            "crew_member_code": "elsa",
+            "conversation_id": conversation_id,
+            "message": "j'ai de la fievre",
+        },
+    )
+    assert "fievre" in fever.json()["content"].lower()
+    assert "n'ai pas compris" not in fever.json()["content"]
+
+    client.post(
+        "/api/chat/message",
+        json={
+            "crew_member_code": "elsa",
+            "conversation_id": conversation_id,
+            "message": "J'ai la diarrhee",
+        },
+    )
+    worse = client.post(
+        "/api/chat/message",
+        json={
+            "crew_member_code": "elsa",
+            "conversation_id": conversation_id,
+            "message": "ca empire",
+        },
+    )
+    assert "empire" in worse.json()["content"].lower()
+    assert "n'ai pas compris" not in worse.json()["content"]
+
