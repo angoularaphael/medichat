@@ -120,3 +120,26 @@ def test_t10_triage_order(client):
     triage = client.get("/api/triage").json()
     priorities = [t["triage_priority"] for t in triage]
     assert priorities == sorted(priorities)
+
+
+def test_confirm_updates_stock(client):
+    drugs = client.get("/api/drugs").json()
+    before = next(row for row in drugs if row["code"] == "paracetamol")["stock_units"]
+    ors_before = next(row for row in drugs if row["code"] == "ors")["stock_units"]
+    response = client.post(
+        "/api/care/confirm",
+        json={"crew_member_code": "elisa", "drug_code": "paracetamol", "dose_mg": 500},
+    )
+    assert response.status_code == 200
+    assert response.json()["stock_remaining"] == before - 1
+    after = client.get("/api/drugs").json()
+    assert next(row for row in after if row["code"] == "paracetamol")["stock_units"] == before - 1
+
+    ors = client.post(
+        "/api/care/confirm",
+        json={"crew_member_code": "elisa", "drug_code": "ors", "dose_mg": 1},
+    )
+    assert ors.status_code == 200
+    gastro = client.get("/api/clinical/gastro-estimate").json()
+    row = next(item for item in gastro["rows"] if item["drug_code"] == "ors")
+    assert row["stock_units"] == ors_before - 1

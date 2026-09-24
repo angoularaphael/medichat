@@ -14,6 +14,7 @@ class Recommendation(BaseModel):
     drug_name: str
     dose_mg: float
     rationale: str
+    stock_units: int = 0
 
 
 class PlantRecommendation(BaseModel):

@@ -55,10 +55,13 @@ def _cover_days(stock: int, daily: float) -> float:
     return round(stock / daily, 1)
 
 
-def gastro_six_month_estimate() -> dict:
+def gastro_six_month_estimate(live_stocks: dict[str, int] | None = None) -> dict:
     daily_need = SICK_AT_ONCE
     rows = []
     for item in PLAN:
+        stock = item["stock_units"]
+        if live_stocks is not None and item["drug_code"] in live_stocks:
+            stock = live_stocks[item["drug_code"]]
         per_wave = item["units_per_sick_day"] * item["use_days_per_wave"] * daily_need
         six_month_need = per_wave * WAVES
         daily = item["units_per_sick_day"] * daily_need
@@ -66,10 +69,10 @@ def gastro_six_month_estimate() -> dict:
             {
                 "drug_code": item["drug_code"],
                 "label": item["label"],
-                "stock_units": item["stock_units"],
+                "stock_units": stock,
                 "need_6_months": six_month_need,
-                "shortage_units": max(0, six_month_need - item["stock_units"]),
-                "days_covered_at_peak": _cover_days(item["stock_units"], daily),
+                "shortage_units": max(0, six_month_need - stock),
+                "days_covered_at_peak": _cover_days(stock, daily),
                 "basis": item["basis"],
             }
         )

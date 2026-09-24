@@ -678,6 +678,19 @@ button:disabled {
   margin-bottom: 24px;
 }
 
+.journal-exports {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  width: 100%;
+}
+
+.journal-exports .outline-action {
+  width: 100%;
+  min-height: 44px;
+  font-size: 14px;
+}
+
 .page-heading h1 {
   margin: 7px 0 4px;
   font-size: clamp(1.75rem, 6vw, 3rem);
@@ -2462,6 +2475,11 @@ button:disabled {
     flex-direction: row;
     align-items: flex-end;
     justify-content: space-between;
+  }
+
+  .journal-exports {
+    width: min(100%, 520px);
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   }
 
   .autonomy-visual {

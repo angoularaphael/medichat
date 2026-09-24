@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { BellRing, FileClock, RotateCcw, Satellite, ShieldAlert } from "lucide-react";
+import { BellRing, FileClock, FileDown, RotateCcw, Satellite, ShieldAlert } from "lucide-react";
+import { useState } from "react";
 import { api } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 
@@ -22,6 +23,21 @@ export default function JournalPage() {
     queryFn: api.securityAlerts,
     enabled: user?.role === "admin",
   });
+  const [exportError, setExportError] = useState("");
+  const [exporting, setExporting] = useState<"csv" | "pdf" | null>(null);
+
+  async function download(format: "csv" | "pdf") {
+    setExportError("");
+    setExporting(format);
+    try {
+      await api.downloadJournal(format);
+    } catch (error) {
+      setExportError(error instanceof Error ? error.message : "Export impossible");
+    } finally {
+      setExporting(null);
+    }
+  }
+
   const reset = useMutation({
     mutationFn: api.resetDemo,
     onSuccess: async () => {
@@ -35,13 +51,22 @@ export default function JournalPage() {
         <div>
           <span className="eyebrow">Traçabilité / Mémoire de mission</span>
           <h1>Journal des décisions</h1>
-          <p>Historique inviolable des soins, alertes et changements de protocole.</p>
+          <p>Historique inviolable des soins, alertes et changements de protocole. L'export reste sur cette machine.</p>
         </div>
-        {user?.role === "admin" && (
-          <button className="outline-action" type="button" onClick={() => reset.mutate()}>
-            <RotateCcw size={17} /> Réinitialiser la démo
+        <div className="journal-exports">
+          <button className="outline-action" type="button" disabled={exporting !== null} onClick={() => download("csv")}>
+            <FileDown size={17} /> {exporting === "csv" ? "Export CSV..." : "Exporter en CSV"}
           </button>
-        )}
+          <button className="outline-action" type="button" disabled={exporting !== null} onClick={() => download("pdf")}>
+            <FileDown size={17} /> {exporting === "pdf" ? "Export PDF..." : "Exporter en PDF"}
+          </button>
+          {user?.role === "admin" && (
+            <button className="outline-action" type="button" onClick={() => reset.mutate()}>
+              <RotateCcw size={17} /> Réinitialiser la démo
+            </button>
+          )}
+        </div>
+        {exportError && <p className="form-error" role="alert">{exportError}</p>}
       </div>
 
       <div className="journal-grid">

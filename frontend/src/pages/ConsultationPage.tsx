@@ -55,6 +55,7 @@ export default function ConsultationPage() {
   const [messages, setMessages] = useState<ChatLine[]>([]);
   const [evaluation, setEvaluation] = useState<CareEvaluation | null>(null);
   const [confirmedCodes, setConfirmedCodes] = useState<string[]>([]);
+  const [stockLeft, setStockLeft] = useState<Record<string, number>>({});
   const [plantHarvested, setPlantHarvested] = useState(false);
   const threadEnd = useRef<HTMLDivElement>(null);
   const bootstrapped = useRef(false);
@@ -145,6 +146,7 @@ export default function ConsultationPage() {
       ]);
       setEvaluation(response.evaluation);
       setConfirmedCodes([]);
+      setStockLeft({});
       setPlantHarvested(false);
       speak(response.content, {
         onStart: () => setSpeaking(true),
@@ -173,14 +175,17 @@ export default function ConsultationPage() {
   const confirmation = useMutation({
     mutationFn: async (item: { drug_code: string; dose_mg: number }) => {
       const target = evaluation?.understanding?.care_crew_code ?? selectedCrew;
-      await api.confirm(target, item.drug_code, item.dose_mg);
-      return item.drug_code;
+      const result = await api.confirm(target, item.drug_code, item.dose_mg);
+      return { drug_code: item.drug_code, stock_remaining: result.stock_remaining };
     },
-    onSuccess: async (drugCode) => {
-      if (drugCode) setConfirmedCodes((current) => [...current, drugCode]);
+    onSuccess: async (result) => {
+      if (!result) return;
+      setConfirmedCodes((current) => [...current, result.drug_code]);
+      setStockLeft((current) => ({ ...current, [result.drug_code]: result.stock_remaining }));
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["autonomy"] }),
         queryClient.invalidateQueries({ queryKey: ["drugs"] }),
+        queryClient.invalidateQueries({ queryKey: ["gastro-estimate"] }),
         queryClient.invalidateQueries({ queryKey: ["journal"] }),
       ]);
     },
@@ -194,6 +199,7 @@ export default function ConsultationPage() {
     setMessages([]);
     setEvaluation(null);
     setConfirmedCodes([]);
+    setStockLeft({});
     setPlantHarvested(false);
     primeSpeech();
     speak(spokenWelcome, {
@@ -469,8 +475,8 @@ export default function ConsultationPage() {
                               }
                             >
                               {confirmedCodes.includes(item.recommendation.drug_code)
-                                ? "Prise enregistree"
-                                : "Confirmer cette prise"}
+                                ? `Prise enregistree, stock ${stockLeft[item.recommendation.drug_code] ?? item.recommendation.stock_units ?? "-"}`
+                                : `Confirmer cette prise (stock ${stockLeft[item.recommendation.drug_code] ?? item.recommendation.stock_units ?? "-"})`}
                             </button>
                           )}
                         </li>
@@ -483,7 +489,9 @@ export default function ConsultationPage() {
                   <div className="recommendation-card glass-panel">
                     <div className="recommendation-top">
                       <span><ShieldCheck size={17} /> Proposition validée</span>
-                      <i>Stock disponible</i>
+                      <i>
+                        Stock {stockLeft[evaluation.recommendation.drug_code] ?? evaluation.recommendation.stock_units ?? "-"}
+                      </i>
                     </div>
                     <div className="drug-name">
                       <span>{evaluation.recommendation.drug_name.charAt(0)}</span>
@@ -517,6 +525,11 @@ export default function ConsultationPage() {
                         "Confirmer la prise"
                       )}
                     </button>
+                    {confirmation.isError && (
+                      <p className="form-error" role="alert">
+                        {confirmation.error instanceof Error ? confirmation.error.message : "Le stock n'a pas ete mis a jour."}
+                      </p>
+                    )}
                   </div>
                 )}
 

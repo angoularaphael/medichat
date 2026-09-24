@@ -1,7 +1,9 @@
+from datetime import datetime, timezone
 from typing import Annotated
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import Response
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
@@ -35,6 +37,7 @@ from app.services import (
     crisis,
     face_id,
     journal,
+    log_export,
     message_understanding,
     mqtt_service,
     ollama_client,
@@ -487,10 +490,15 @@ def activate_rationing(
 
 
 @router.get("/clinical/gastro-estimate")
-def gastro_estimate(_user: Annotated[User, Depends(get_current_user)]):
-    from app.services.gastro_estimate import gastro_six_month_estimate
+def gastro_estimate(
+    db: Annotated[Session, Depends(get_db)],
+    _user: Annotated[User, Depends(get_current_user)],
+):
+    from app.services.gastro_estimate import PLAN, gastro_six_month_estimate
 
-    return gastro_six_month_estimate()
+    codes = [item["drug_code"] for item in PLAN]
+    rows = db.query(Drug).filter(Drug.code.in_(codes)).all()
+    return gastro_six_month_estimate({row.code: row.stock_units for row in rows})
 
 
 @router.get("/clinical/isolation-guide")
@@ -649,6 +657,40 @@ def harvest_bacteria(
     if error:
         raise HTTPException(400, error)
     return bacteria.serialize(row)
+
+
+def _journal_export(db: Session, user: User, kind: str) -> Response:
+    rows = log_export.collect_rows(db, include_alerts=user.role == "admin")
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%d")
+    if kind == "csv":
+        body = log_export.to_csv(rows)
+        media = "text/csv; charset=utf-8"
+        filename = f"eir-journal-{stamp}.csv"
+    else:
+        body = log_export.to_pdf(rows)
+        media = "application/pdf"
+        filename = f"eir-journal-{stamp}.pdf"
+    return Response(
+        content=body,
+        media_type=media,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/journal/export.csv")
+def export_journal_csv(
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(get_current_user)],
+):
+    return _journal_export(db, user, "csv")
+
+
+@router.get("/journal/export.pdf")
+def export_journal_pdf(
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(get_current_user)],
+):
+    return _journal_export(db, user, "pdf")
 
 
 @router.get("/journal", response_model=list[DecisionLogEntry])

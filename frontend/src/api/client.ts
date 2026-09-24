@@ -85,6 +85,7 @@ export type SymptomCareItem = {
     drug_name: string;
     dose_mg: number;
     rationale: string;
+    stock_units?: number;
   } | null;
   non_drug_protocol?: string | null;
   plant_recommendation?: {
@@ -101,6 +102,7 @@ export type CareEvaluation = {
     drug_name: string;
     dose_mg: number;
     rationale: string;
+    stock_units?: number;
   } | null;
   escalate_to_physician: boolean;
   urgency: string;
@@ -302,7 +304,7 @@ export const api = {
       }),
     }),
   confirm: (crew_member_code: string, drug_code: string, dose_mg: number) =>
-    request<{ ok: boolean }>("/api/care/confirm", {
+    request<{ ok: boolean; stock_remaining: number }>("/api/care/confirm", {
       method: "POST",
       body: JSON.stringify({ crew_member_code, drug_code, dose_mg }),
     }),
@@ -356,6 +358,22 @@ export const api = {
   harvestBacteria: (code: string) =>
     request<BacteriaCulture>(`/api/bacteria/${code}/harvest`, { method: "POST" }),
   journal: () => request<JournalEntry[]>("/api/journal"),
+  downloadJournal: async (format: "csv" | "pdf") => {
+    const token = session.getToken();
+    const response = await fetch(`${base}/api/journal/export.${format}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!response.ok) {
+      throw new Error("Export impossible");
+    }
+    const blob = await response.blob();
+    const stamp = new Date().toISOString().slice(0, 10);
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `eir-journal-${stamp}.${format}`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  },
   securityAlerts: () => request<SecurityAlert[]>("/api/security/alerts"),
   surveillance: () => request<WatchBoard>("/api/surveillance"),
   surveillanceScenario: (name: string) =>
