@@ -44,6 +44,7 @@ from app.services import (
     plants,
     rules_engine,
     surveillance,
+    stock_curve,
     triage,
 )
 from app.services.symptom_catalog import ISOLATION_CASES_FR, NON_ISOLATION_EXAMPLES_FR
@@ -343,6 +344,42 @@ async def chat_message(
         conversation = conversations.create_conversation(db, user.username, body.crew_member_code)
 
     history = conversations.history_text(db, conversation.id)
+    if ollama_client.is_feeling_better(body.message):
+        content = ollama_client.feeling_better_reply()
+        evaluation = CareEvaluationResult(
+            non_drug_protocol=content,
+            needs_clarification=False,
+            urgency="routine",
+            rules_fired=["feeling_better"],
+        )
+        db.add(
+            ChatMessage(
+                session_id=conversation.id,
+                conversation_id=conversation.id,
+                role="user",
+                content=body.message,
+            )
+        )
+        db.add(
+            ChatMessage(
+                session_id=conversation.id,
+                conversation_id=conversation.id,
+                role="assistant",
+                content=content,
+                meta={"llm_mode": "rules", "evaluation": evaluation.model_dump()},
+            )
+        )
+        conversations.touch_title(db, conversation, body.message)
+        db.commit()
+        return ChatMessageResponse(
+            session_id=conversation.id,
+            conversation_id=conversation.id,
+            role="assistant",
+            content=content,
+            evaluation=evaluation,
+            llm_mode="rules",
+        )
+
     understanding = await message_understanding.understand_message(
         body.message,
         body.crew_member_code,
@@ -350,7 +387,7 @@ async def chat_message(
     if understanding.third_person and user.role != "admin":
         raise HTTPException(
             403,
-            "Seul le poste medical (admin) peut demander une decision pour un autre equipier.",
+            "Seul un admin peut demander une decision pour un autre equipier.",
         )
     care_member = (
         db.query(CrewMember).filter(CrewMember.code == understanding.care_crew_code).first()
@@ -542,7 +579,16 @@ def force_stock_zero(
     drug = db.query(Drug).filter(Drug.code == drug_code).first()
     if not drug:
         raise HTTPException(404, "Medicament inconnu")
+    before = drug.stock_units
     drug.stock_units = 0
+    if before > 0:
+        db.add(
+            StockMovement(
+                drug_id=drug.id,
+                delta=-before,
+                reason="demo_stock_zero",
+            )
+        )
     db.commit()
     mqtt_service.publish_stock_low(drug.code, 0)
     journal.log_decision(
@@ -675,6 +721,14 @@ def _journal_export(db: Session, user: User, kind: str) -> Response:
         media_type=media,
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+@router.get("/stocks/curve")
+def stocks_curve(
+    db: Annotated[Session, Depends(get_db)],
+    _user: Annotated[User, Depends(get_current_user)],
+):
+    return stock_curve.build_stock_curve(db)
 
 
 @router.get("/journal/export.csv")

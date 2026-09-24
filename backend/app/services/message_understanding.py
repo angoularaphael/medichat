@@ -171,7 +171,7 @@ def build_narrative_summary(u: MessageUnderstanding, care_name: str) -> str:
     who = care_name if u.third_person else "toi"
     bits = [f.topic_fr for f in u.findings]
     joined = ", ".join(bits)
-    return f"J'ai releve pour {who}: {joined}."
+    return f"Pour {who} : {joined}."
 
 
 def understand_message_rules(message: str, active_crew: str) -> MessageUnderstanding:

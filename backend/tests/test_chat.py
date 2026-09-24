@@ -134,3 +134,33 @@ def test_respiratory_difficulty_escalates(client, monkeypatch):
     evaluation = response.json()["evaluation"]
     assert evaluation["escalate_to_physician"] is True
     assert evaluation["urgency"] == "critical"
+
+
+def test_feeling_better_gets_a_clear_reply(client, monkeypatch):
+    monkeypatch.setattr(
+        ollama_client,
+        "reformulate_with_ollama",
+        _template_response,
+    )
+    first = client.post(
+        "/api/chat/message",
+        json={
+            "crew_member_code": "raphael",
+            "message": "J'ai mal a la tete depuis ce matin",
+        },
+    )
+    assert first.status_code == 200
+    second = client.post(
+        "/api/chat/message",
+        json={
+            "crew_member_code": "raphael",
+            "conversation_id": first.json()["conversation_id"],
+            "message": "CA VA MIEUX MAINTENANT",
+        },
+    )
+    assert second.status_code == 200
+    content = second.json()["content"]
+    assert "Tant mieux" in content
+    assert "Decris plus precisement" not in content
+    assert "\n\n" in content
+

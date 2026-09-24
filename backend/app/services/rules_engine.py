@@ -89,8 +89,9 @@ LAST_RESORT_WATCH = (
     "isolement cabine medicale. C'est le dernier recours, pas la reponse par defaut."
 )
 SYMPTOMS_CLARIFY = (
-    "Decris plus precisement ce que tu as (mal de tete, ventre, fievre, sommeil, etc.). "
-    "Sans ca je ne peux pas proposer un medicament."
+    "Je n'ai pas compris ce qui ne va pas.\n\n"
+    "Dis-moi ou tu as mal, ou si tu as de la fievre, mal au ventre, ou du mal a dormir.\n\n"
+    "Avec ca, je peux te proposer quelque chose."
 )
 PAIN_CLARIFY = (
     "Tu as mal, mais l'endroit n'est pas assez precis. "
@@ -130,9 +131,101 @@ ANXIETE_PROTOCOL = (
     "La camomille de cabine est un confort, pas un medicament. "
     "Si douleur poitrine ou essoufflement en plus, ce n'est plus que du stress."
 )
-RELAY_LIMIT = (
-    " EIR ne fabrique pas la molecule: pas de fermentation, pas d'extraction, pas de purification, pas de dose de plante brute."
-)
+
+PLAIN_PLANT = {
+    "salix": (
+        "Il n'y a plus de comprime pour ca.\n\n"
+        "A la serre, le saule peut calmer un peu. C'est la plante d'ou vient l'aspirine. "
+        "Fais une tisane legere, puis repose-toi. Ce n'est pas un comprime.\n\n"
+        "Bois souvent. Si ca empire, redis-le moi."
+    ),
+    "thymus": (
+        "Il n'y a plus d'antibiotique en flacon.\n\n"
+        "Le thym de la serre peut adoucir une gorge irritee. "
+        "Infuse quelques feuilles dans de l'eau chaude, puis repose-toi. "
+        "Ca ne remplace pas un antibiotique.\n\n"
+        "Si la fievre monte ou si tu as du mal a respirer, redis-le moi."
+    ),
+    "allium": (
+        "Il n'y a plus d'antibiotique en flacon.\n\n"
+        "Tu peux manger une gousse d'ail fraiche de la serre, avec le repas. "
+        "Ca aide un peu, ce n'est pas un medicament.\n\n"
+        "Si ca empire, redis-le moi."
+    ),
+    "mentha": (
+        "Il n'y a plus de comprime contre les nausees.\n\n"
+        "Une infusion de menthe tiede peut calmer l'estomac. "
+        "Bois lentement, par petites gorgees.\n\n"
+        "Si tu vomis encore, redis-le moi."
+    ),
+    "zingiber": (
+        "Il n'y a plus de comprime contre les nausees.\n\n"
+        "Une lamelle de gingembre ou une infusion tiede peut aider. "
+        "Bois lentement.\n\n"
+        "Si tu vomis encore, redis-le moi."
+    ),
+    "oryza": (
+        "Il n'y a plus de sachet contre la diarrhee.\n\n"
+        "Mange un peu de riz nature et bois l'eau de cuisson, par petites gorgees. "
+        "Ca aide a tenir, ce n'est pas un medicament.\n\n"
+        "Si tu as du sang, de la fievre, ou si ca dure, redis-le moi."
+    ),
+    "aloe": (
+        "Il n'y a plus de pommade.\n\n"
+        "Passe de l'eau tiede, puis le gel clair d'une feuille d'aloes sur la peau, "
+        "seulement si elle n'est pas ouverte.\n\n"
+        "Si la brulure est grande ou profonde, redis-le moi tout de suite."
+    ),
+    "calendula": (
+        "Il n'y a plus de creme.\n\n"
+        "Une compresse tiede de souci peut calmer une peau qui gratte, si elle n'est pas ouverte.\n\n"
+        "Si ca s'etend ou si ca coule, redis-le moi."
+    ),
+    "plantago": (
+        "Il n'y a plus de desinfectant en flacon.\n\n"
+        "Lave la petite coupure a l'eau, puis pose une feuille de plantain rincee dessus.\n\n"
+        "Si ca rougit ou si tu as de la fievre, redis-le moi."
+    ),
+    "matricaria": (
+        "On ne donne pas de comprime pour dormir.\n\n"
+        "Une infusion legere de camomille peut t'aider a te poser. "
+        "Lumiere basse, pas d'ecran.\n\n"
+        "Si tu as aussi mal quelque part, dis-le moi."
+    ),
+    "spirulina": (
+        "Le medicament utile n'est plus en stock.\n\n"
+        "La spiruline de la serre est un aliment: elle aide a reprendre des forces, "
+        "elle ne soigne pas la maladie.\n\n"
+        "Repose-toi, bois, et redis-moi si ca empire."
+    ),
+}
+
+PLAIN_BACTERIA = {
+    "penicillium_chrysogenum": (
+        "Il n'y a plus d'antibiotique en flacon, et la serre n'a plus de relais.\n\n"
+        "La cuve de moisissure est celle qui sert, en usine, a faire la penicilline. "
+        "A bord, on ne l'ouvre pas et on ne la boit pas.\n\n"
+        "Repose-toi, bois, surveille la fievre. Si ca empire, redis-le moi."
+    ),
+    "lactobacillus_acidophilus": (
+        "Il n'y a plus de sachet pour le ventre.\n\n"
+        "Le ferment de la cuve peut aider la flore, apres une diarrhee. "
+        "C'est un aliment, pas un antibiotique.\n\n"
+        "Bois souvent. Si ca empire, redis-le moi."
+    ),
+    "bacillus_subtilis": (
+        "Il n'y a plus de sachet pour le ventre.\n\n"
+        "Un autre ferment de la cuve peut accompagner la flore. "
+        "C'est un aliment, pas un medicament.\n\n"
+        "Bois souvent. Si ca empire, redis-le moi."
+    ),
+    "bifidobacterium_longum": (
+        "Il n'y a plus de sachet pour le ventre.\n\n"
+        "Un ferment de la cuve peut accompagner la flore. "
+        "C'est un aliment, pas un medicament.\n\n"
+        "Bois souvent. Si ca empire, redis-le moi."
+    ),
+}
 
 
 def _symptom_indication(symptoms: list[str]) -> str:
@@ -217,14 +310,14 @@ def _profile_blocked_protocol(excluded: list[ExcludedOption], indication: str) -
             " Avec un anticoagulant, les AINS (ibuprofene, aspirine) sont en general "
             "contre-indiques; le paracetamol reste l'option si tu n'y es pas allergique."
         )
-    return f"{intro} Surveille tes signes et previens le poste medical."
+    return f"{intro} Surveille comment tu te sens, et dis-le a un coequipier."
 
 
 def _support_text(indication: str) -> str:
     if indication == "diarrhea":
         return (
             " Bois par petites gorgees, sels de rehydration si tu en as. "
-            "Le riz de la serre aide a lier. Ensuite la cuve Lactobacillus pour la flore."
+            "Le riz de la serre aide a lier. Ensuite le ferment de la cuve pour la flore."
         )
     if indication in {"nausea", "motion"}:
         return " Petites gorgees, gingembre de cabine si tu en as, repas leger."
@@ -256,21 +349,39 @@ def _indication_stock_depleted(db: Session, candidates: list[Drug], indication: 
     return all(drug.stock_units <= 0 for drug in pool)
 
 
+def _takes_blood_thinner(member: CrewMember | None) -> bool:
+    if not member:
+        return False
+    codes = {str(item.get("drug_code", "")).lower() for item in (member.current_treatments or [])}
+    return "warfarin" in codes
+
+
 def _plant_fallback(
     db: Session,
     indication: str,
     excluded: list[ExcludedOption],
     rules: list[str],
+    member: CrewMember | None = None,
 ) -> CareEvaluationResult | None:
     plant = plants.find_ready_plant(db, indication)
     if plant:
         rules.append(f"plant_relay_{plant.code}")
-        protocol = (
-            f"Il n'y a plus de medicament en stock pour ca. "
-            f"Relais serre, {plant.name} ({plant.species}): {plant.notes}"
-            f"{RELAY_LIMIT}"
-            f"{_support_text(indication)}"
+        protocol = PLAIN_PLANT.get(
+            plant.code,
+            (
+                "Il n'y a plus de comprime pour ca.\n\n"
+                f"A la serre, {plant.name} peut aider un peu. Ce n'est pas le medicament du flacon.\n\n"
+                "Si ca empire, redis-le moi."
+            ),
         )
+        if plant.code == "salix" and _takes_blood_thinner(member):
+            protocol = (
+                "Il n'y a plus de comprime pour ca.\n\n"
+                "Le saule de la serre est la plante d'ou vient l'aspirine. "
+                "Toi, tu prends deja un medicament qui fluidifie le sang. "
+                "Le saule peut faire saigner, donc n'en prends pas.\n\n"
+                "Repose-toi et bois de l'eau. Si ca empire, redis-le moi."
+            )
         return CareEvaluationResult(
             excluded_options=excluded,
             recommendation=None,
@@ -288,11 +399,13 @@ def _plant_fallback(
     if not culture:
         return None
     rules.append(f"bacteria_relay_{culture.code}")
-    protocol = (
-        f"Il n'y a plus de medicament en stock. "
-        f"Cuve {culture.nom_souche} ({culture.quantite_boites} boites): {culture.notes}"
-        f"{RELAY_LIMIT}"
-        f"{_support_text(indication)}"
+    protocol = PLAIN_BACTERIA.get(
+        culture.code,
+        (
+            "Il n'y a plus de comprime, et la serre ne suffit pas.\n\n"
+            f"La cuve {culture.nom_souche} est une reserve de bord. On ne la boit pas comme un medicament.\n\n"
+            "Repose-toi et redis-moi si ca empire."
+        ),
     )
     return CareEvaluationResult(
         excluded_options=excluded,
@@ -384,7 +497,7 @@ def evaluate_care(
             escalate_to_physician=False,
             urgency="unknown",
             rules_fired=["patient_unknown"],
-            non_drug_protocol="Identification equipage requise avant toute proposition EIR.",
+            non_drug_protocol="Je ne sais pas qui est malade. Choisis un membre de l'equipage.",
         )
 
     isolated, isolation_rule = check_isolation(symptoms)
@@ -597,7 +710,7 @@ def evaluate_care(
                         drug_code=sub.code,
                         drug_name=sub.name,
                         dose_mg=min(dose, sub.dose_max_mg),
-                        rationale=f"On en a encore en stock (remplace {drug.name}).{_support_text(indication)}",
+                        rationale=f"Il en reste dans l'armoire. On le prend a la place de {drug.name}.{_support_text(indication)}",
                         stock_units=sub.stock_units,
                     ),
                     escalate_to_physician=False,
@@ -613,7 +726,7 @@ def evaluate_care(
                 drug_code=drug.code,
                 drug_name=drug.name,
                 dose_mg=dose,
-                rationale=f"On en a encore en stock.{_support_text(indication)}",
+                rationale=f"Il en reste dans l'armoire.{_support_text(indication)}",
                 stock_units=drug.stock_units,
             ),
             escalate_to_physician=False,
@@ -623,7 +736,7 @@ def evaluate_care(
 
     stock_depleted = _indication_stock_depleted(db, candidates, indication)
     if stock_depleted:
-        plant_result = _plant_fallback(db, indication, excluded, rules)
+        plant_result = _plant_fallback(db, indication, excluded, rules, member)
         if plant_result:
             return plant_result
 

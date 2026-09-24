@@ -293,6 +293,7 @@ export const api = {
       body: JSON.stringify(body),
     }),
   drugs: () => request<Drug[]>("/api/drugs"),
+  stockCurve: () => request<{ points: { label: string; units: number; reason: string }[]; now: number }>("/api/stocks/curve"),
   chat: (crew_member_code: string, message: string, conversation_id?: string) =>
     request<ChatResponse>("/api/chat/message", {
       method: "POST",

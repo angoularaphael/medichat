@@ -22,6 +22,42 @@ EPISODE_FOLLOWUP = re.compile(
     re.I,
 )
 
+FEELING_BETTER = re.compile(
+    r"\b(va mieux|vais mieux|me sens mieux|c'est mieux|tout va bien|ca va bien)\b",
+    re.I,
+)
+
+
+def _plain(text: str) -> str:
+    return (
+        text.lower()
+        .replace("ç", "c")
+        .replace("é", "e")
+        .replace("è", "e")
+        .replace("ê", "e")
+        .replace("à", "a")
+        .replace("ù", "u")
+        .replace("'", " ")
+    )
+
+
+def is_feeling_better(message: str) -> bool:
+    text = _plain(message)
+    if re.search(r"pas mieux|moins bien|pire|aggrav", text):
+        return False
+    if clinical_symptoms(message):
+        return False
+    return bool(FEELING_BETTER.search(text))
+
+
+def feeling_better_reply() -> str:
+    return (
+        "Tant mieux.\n\n"
+        "Repose-toi encore un peu et bois de l'eau. "
+        "Mange leger si tu as faim.\n\n"
+        "Si la douleur, la fievre ou les nausees reviennent, redis-le moi."
+    )
+
 
 def extract_symptoms(text: str) -> list[str]:
     return labels_from_text(text)
@@ -102,7 +138,7 @@ def _template_structured(evaluation: CareEvaluationResult) -> str | None:
 
     intro = ""
     if understanding and understanding.narrative_summary:
-        intro = understanding.narrative_summary + " "
+        intro = understanding.narrative_summary.strip() + "\n\n"
     elif understanding and third:
         who = understanding.care_crew_name or understanding.care_crew_code
         intro = f"Pour {who}, voici ce qu'on fait pour chaque point. "
@@ -122,7 +158,7 @@ def _template_structured(evaluation: CareEvaluationResult) -> str | None:
 
     if not parts:
         return None
-    return (intro + " ".join(parts)).strip() + " Dis-moi si ca evolue."
+    return (intro + "\n\n".join(parts)).strip()
 
 
 def template_reply(
@@ -147,7 +183,7 @@ def template_reply(
             return (
                 f"On reste sur le meme episode. Pour {topic}, "
                 f"je te conseille {rec.drug_name} ({rec.dose_mg:.0f} mg). "
-                f"{rec.rationale} Dis-moi si ca evolue."
+                f"{rec.rationale} Dis-moi si ca revient."
             )
         if evaluation.plant_recommendation:
             plant = evaluation.plant_recommendation
@@ -179,7 +215,10 @@ async def reformulate_with_ollama(
     system = (
         "Tu es EIR Medichat, collegue de bord. Tu tutoies avec des mots simples. "
         "Ne recopies jamais le message du patient mot pour mot. Pas de formule du type j'entends. "
-        "Tu reformules UNIQUEMENT la decision JSON. "
+        "Tu reformules UNIQUEMENT la decision JSON, en phrases courtes. "
+        "Un paragraphe par idee, separe par une ligne vide. "
+        "Langage simple, comme a un coequipier. "
+        "Ne dis pas fermentation, extraction, purification, ni poste medical. "
         "Ne prescris jamais un medicament absent du JSON. "
         "Si un relais plante ou cuve est dans le JSON, repete son origine et sa limite. "
         "N'invente aucun milieu de culture, aucune extraction, aucune purification, aucune dose de plante brute. "

@@ -12,6 +12,16 @@ const statusLabel: Record<string, string> = {
   depleted: "Epuisee",
 };
 
+const classLabel: Record<string, string> = {
+  antibiotic: "antibiotique",
+  analgesic: "antidouleur",
+  antiemetic: "nausees",
+  antimalarial: "paludisme",
+  support: "aliment",
+  adsorbent: "diarrhee",
+  topical: "peau",
+  comfort: "confort",
+};
 const viabilityLabel: Record<string, string> = {
   Actif: "Actif",
   "En sommeil": "En sommeil",
@@ -88,9 +98,8 @@ export default function CulturesPage() {
         <div className="section-heading">
           <h2 id="bacteries-title">Bacteries</h2>
           <p>
-            Souches alimentaires, sources industrielles nommees, et une souche de test.
-            Lactobacillus, Bacillus et Bifidobacterium sont des ferments. Les references ne se cultivent pas.
-            Staphylococcus aureus ne s'incube pas et ne se preleve pas.
+            Les ferments aident le ventre. Les autres cuves rappellent d'ou viennent certains medicaments, en usine.
+            On ne les ouvre pas a bord. La bacterie de test reste fermee.
           </p>
         </div>
         <div className="plant-grid">
@@ -152,7 +161,7 @@ function PlantCard({
       <p>{open ? plant.description || plant.notes : plant.notes}</p>
       <div className="plant-meta">
         <span>Relais</span>
-        <strong>{plant.replaces_drug_class}</strong>
+        <strong>{classLabel[plant.replaces_drug_class] ?? plant.replaces_drug_class}</strong>
       </div>
       <div className="plant-biomass">
         <div>

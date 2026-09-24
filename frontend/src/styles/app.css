@@ -959,6 +959,20 @@ button:disabled {
   background: linear-gradient(90deg, var(--violet-deep), #b49fff);
 }
 
+.stock-curve {
+  width: 100%;
+  height: auto;
+  margin-top: 12px;
+  color: #9ee7ff;
+}
+
+.stock-curve figcaption {
+  margin-top: 8px;
+  color: #c5d0ea;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
 .stock-list {
   border-top: 1px solid var(--line);
   padding-top: 14px;
@@ -1833,8 +1847,8 @@ button:disabled {
   margin: 4px 0;
   color: #e3e7f6;
   font-family: "Segoe UI", sans-serif;
-  font-size: 13px;
-  line-height: 1.6;
+  font-size: 15px;
+  line-height: 1.55;
   white-space: pre-line;
 }
 

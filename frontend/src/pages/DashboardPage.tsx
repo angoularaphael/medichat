@@ -25,6 +25,38 @@ const reveal = {
   }),
 };
 
+function StockCurve({
+  points,
+  now,
+}: {
+  points: { label: string; units: number; reason: string }[];
+  now: number;
+}) {
+  const width = 320;
+  const height = 120;
+  const pad = 10;
+  const max = Math.max(1, ...points.map((point) => point.units));
+  const line = points
+    .map((point, index) => {
+      const x = points.length === 1 ? width / 2 : pad + (index / (points.length - 1)) * (width - pad * 2);
+      const y = height - pad - (point.units / max) * (height - pad * 2);
+      return `${x},${y}`;
+    })
+    .join(" ");
+  const start = points[0]?.units ?? now;
+
+  return (
+    <figure className="stock-curve">
+      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Courbe du stock total">
+        <polyline fill="none" stroke="currentColor" strokeWidth="2" points={line} />
+      </svg>
+      <figcaption>
+        Stock total : {start} au depart, {now} maintenant.
+      </figcaption>
+    </figure>
+  );
+}
+
 export default function DashboardPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -33,6 +65,7 @@ export default function DashboardPage() {
   const crew = useQuery({ queryKey: ["crew"], queryFn: api.crew });
   const triage = useQuery({ queryKey: ["triage"], queryFn: api.triage });
   const drugs = useQuery({ queryKey: ["drugs"], queryFn: api.drugs });
+  const curve = useQuery({ queryKey: ["stock-curve"], queryFn: api.stockCurve });
   const plants = useQuery({ queryKey: ["plants"], queryFn: api.plants });
   const status = useQuery({ queryKey: ["system-status"], queryFn: api.systemStatus, refetchInterval: 15000 });
   const gastro = useQuery({ queryKey: ["gastro-estimate"], queryFn: api.gastroEstimate });
@@ -183,6 +216,9 @@ export default function DashboardPage() {
               </div>
             </div>
           </div>
+          {curve.data && curve.data.points.length > 0 && (
+            <StockCurve points={curve.data.points} now={curve.data.now} />
+          )}
           <div className="stock-list">
             {autonomy.data?.on_demand.drugs.slice(0, 5).map((drug) => (
               <div key={drug.drug_code}>

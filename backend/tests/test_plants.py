@@ -37,8 +37,9 @@ def test_empty_antibiotics_use_plant_relay(client):
     assert data["recommendation"] is None
     assert data["plant_recommendation"]["plant_code"] in {"thymus", "allium"}
     protocol = data["non_drug_protocol"].lower()
-    assert "fermentation" in protocol
-    assert "amoxicilline" in protocol
+    assert "fermentation" not in protocol
+    assert "thym" in protocol or "ail" in protocol
+    assert "\n\n" in data["non_drug_protocol"]
 
 
 def test_plants_list_and_harvest(client):
@@ -131,7 +132,8 @@ def test_plant_only_when_analgesic_stock_is_empty(client):
     assert data["recommendation"] is None
     assert data["plant_recommendation"]["plant_code"] == "salix"
     assert "aspirine" in data["non_drug_protocol"].lower()
-    assert "extraction" in data["non_drug_protocol"].lower()
+    assert "saule" in data["non_drug_protocol"].lower()
+    assert "extraction" not in data["non_drug_protocol"].lower()
 
 
 def test_diarrhea_recommends_smecta(client):
@@ -250,7 +252,7 @@ def test_empty_antibiotics_and_plants_use_penicillium(client):
     assert data["recommendation"] is None
     assert data["plant_recommendation"]["plant_code"] == "penicillium_chrysogenum"
     assert "penicilline" in data["non_drug_protocol"].lower()
-    assert "fermentation" in data["non_drug_protocol"].lower()
+    assert "fermentation" not in data["non_drug_protocol"].lower()
 
 
 def test_para_allergy_uses_other_drug_if_available(client):
@@ -388,3 +390,16 @@ def test_raphael_para_allergy_blocks_with_clear_reasons(client):
     protocol = (data["non_drug_protocol"] or "").lower()
     assert "ibuprofen" in protocol or "warfarin" in protocol or "warfarine" in protocol
     assert "paracetamol" in protocol or "allergie" in protocol
+
+
+def test_stock_curve_drops_when_a_drug_is_zeroed(client):
+    before = client.get("/api/stocks/curve")
+    assert before.status_code == 200
+    start = before.json()
+    assert start["now"] > 0
+    zero = client.post("/api/demo/force-stock-zero/paracetamol")
+    assert zero.status_code == 200
+    after = client.get("/api/stocks/curve").json()
+    assert after["now"] < start["now"]
+    assert after["points"][0]["units"] > after["points"][-1]["units"]
+

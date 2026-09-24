@@ -193,6 +193,15 @@ DEFAULT_STOCKS = {row[0]: row[6] for row in FORMULARY}
 
 def zero_all_drug_stocks(db: Session) -> None:
     for drug in db.query(Drug).all():
+        if drug.stock_units <= 0:
+            continue
+        db.add(
+            StockMovement(
+                drug_id=drug.id,
+                delta=-drug.stock_units,
+                reason="demo_stock_zero",
+            )
+        )
         drug.stock_units = 0
     db.commit()
 
