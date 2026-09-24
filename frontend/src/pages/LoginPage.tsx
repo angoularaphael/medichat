@@ -29,6 +29,14 @@ export default function LoginPage() {
     };
   }, []);
 
+  useEffect(() => {
+    const video = videoRef.current;
+    const stream = streamRef.current;
+    if (!cameraOn || !video || !stream) return;
+    video.srcObject = stream;
+    void video.play().catch(() => undefined);
+  }, [cameraOn]);
+
   if (user) return <Navigate to="/dashboard" replace />;
 
   async function handleSubmit(event: FormEvent) {

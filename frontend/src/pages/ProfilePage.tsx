@@ -77,6 +77,22 @@ export default function ProfilePage() {
     };
   }, []);
 
+  useEffect(() => {
+    const video = videoRef.current;
+    const stream = streamRef.current;
+    if (!cameraOn || !video || !stream) return;
+    video.srcObject = stream;
+    void video.play().catch(() => undefined);
+  }, [cameraOn]);
+
+  useEffect(() => {
+    const video = faceVideoRef.current;
+    const stream = faceStreamRef.current;
+    if (!faceCameraOn || !video || !stream) return;
+    video.srcObject = stream;
+    void video.play().catch(() => undefined);
+  }, [faceCameraOn]);
+
   async function startCamera() {
     setError("");
     try {
