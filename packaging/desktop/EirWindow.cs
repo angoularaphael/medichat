@@ -24,6 +24,8 @@ static class EirWindow
             StartPosition = FormStartPosition.CenterScreen,
             BackColor = System.Drawing.Color.FromArgb(11, 16, 32),
         };
+        var exeIcon = System.Drawing.Icon.ExtractAssociatedIcon(Application.ExecutablePath);
+        if (exeIcon != null) form.Icon = exeIcon;
         var web = new WebView2 { Dock = DockStyle.Fill };
         form.Controls.Add(web);
         form.Shown += async (sender, args) =>

@@ -25,7 +25,7 @@ jobs:
           Copy-Item "$dest\lib\net462\Microsoft.Web.WebView2.WinForms.dll" out
           Copy-Item "$dest\runtimes\win-x64\native\WebView2Loader.dll" out
           $csc = "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
-          & $csc /nologo /target:winexe /out:out\EIR.exe /r:out\Microsoft.Web.WebView2.Core.dll /r:out\Microsoft.Web.WebView2.WinForms.dll /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.Net.Http.dll packaging\desktop\EirWindow.cs
+          & $csc /nologo /target:winexe /win32icon:packaging\desktop\eir.ico /out:out\EIR.exe /r:out\Microsoft.Web.WebView2.Core.dll /r:out\Microsoft.Web.WebView2.WinForms.dll /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.Net.Http.dll packaging\desktop\EirWindow.cs
 
       - uses: actions/upload-artifact@v4
         with:
