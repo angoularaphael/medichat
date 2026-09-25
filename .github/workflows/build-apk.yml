@@ -37,10 +37,11 @@ jobs:
       - name: Compiler l'APK
         working-directory: packaging/android
         run: |
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
           set +e
           gradle assembleDebug --no-daemon --stacktrace > "$RUNNER_TEMP/apk-build.log" 2>&1
           code=$?
-          tail -n 30 "$RUNNER_TEMP/apk-build.log" | while IFS= read -r line; do
+          awk '/What went wrong/,/^\* Try:/{print}' "$RUNNER_TEMP/apk-build.log" | head -n 25 | while IFS= read -r line; do
             echo "::error title=APK::$line"
           done
           exit $code
