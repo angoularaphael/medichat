@@ -1,6 +1,13 @@
 from app.services import message_understanding
 
 
+def test_elisa_maux_de_tete_is_understood():
+    msg = "ELISA A DES MAUX DE TETES"
+    u = message_understanding.understand_message_rules(msg, "raphael")
+    assert u.care_crew_code == "elisa"
+    assert "mal de tete" in u.symptom_labels
+
+
 def test_elisa_vomit_cough_fever_understanding():
     msg = "il y a elisa elle fait que vomir, elle tousse beaucoup en plus elle a de la fievre"
     u = message_understanding.understand_message_rules(msg, "raphael")

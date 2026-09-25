@@ -78,7 +78,7 @@ ISOLATION_PATTERNS: list[tuple[re.Pattern[str], str]] = [
 ]
 
 ROUTINE_PATTERNS: list[tuple[re.Pattern[str], str]] = [
-    (re.compile(r"mal de t[êe]te|cephalee|headache", re.I), "mal de tete"),
+    (re.compile(r"maux? de t[êe]tes?|mal de t[êe]tes?|cephalee|headache", re.I), "mal de tete"),
     (
         re.compile(
             r"mal au cr[âa]ne|mal au cran\b|mal a la tete|mal à la tête|mal dans la tete",
