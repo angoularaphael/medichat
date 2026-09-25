@@ -1,8 +1,15 @@
 package fr.boxingcenter.eir;
 
 import android.app.Activity;
+import android.content.Context;
 import android.content.SharedPreferences;
 import android.graphics.Color;
+import android.net.ConnectivityManager;
+import android.net.LinkAddress;
+import android.net.LinkProperties;
+import android.net.Network;
+import android.net.NetworkCapabilities;
+import android.net.wifi.WifiManager;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
@@ -127,23 +134,10 @@ public class MainActivity extends Activity {
     }
 
     private String scan() {
-        List<String> prefixes = new ArrayList<String>();
-        try {
-            Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
-            while (interfaces.hasMoreElements()) {
-                NetworkInterface item = interfaces.nextElement();
-                Enumeration<InetAddress> addresses = item.getInetAddresses();
-                while (addresses.hasMoreElements()) {
-                    InetAddress address = addresses.nextElement();
-                    if (!(address instanceof Inet4Address) || address.isLoopbackAddress()) continue;
-                    byte[] raw = address.getAddress();
-                    prefixes.add((raw[0] & 255) + "." + (raw[1] & 255) + "." + (raw[2] & 255) + ".");
-                }
-            }
-        } catch (Exception ignored) {
-            return null;
-        }
-        ExecutorService pool = Executors.newFixedThreadPool(32);
+        List<String> prefixes = wifiPrefixes();
+        if (prefixes.isEmpty()) prefixes = interfacePrefixes();
+        if (prefixes.isEmpty()) return null;
+        ExecutorService pool = Executors.newFixedThreadPool(48);
         AtomicBoolean done = new AtomicBoolean(false);
         final String[] found = new String[1];
         for (String prefix : prefixes) {
@@ -156,25 +150,85 @@ public class MainActivity extends Activity {
                             if (found[0] == null) found[0] = host;
                         }
                         done.set(true);
+                        pool.shutdownNow();
                     }
                 });
             }
         }
         pool.shutdown();
         try {
-            pool.awaitTermination(12, java.util.concurrent.TimeUnit.SECONDS);
+            pool.awaitTermination(25, java.util.concurrent.TimeUnit.SECONDS);
         } catch (InterruptedException ignored) {
             Thread.currentThread().interrupt();
         }
         return found[0];
     }
 
+    private List<String> wifiPrefixes() {
+        List<String> prefixes = new ArrayList<String>();
+        try {
+            ConnectivityManager manager = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+            if (manager == null) return prefixes;
+            for (Network network : manager.getAllNetworks()) {
+                NetworkCapabilities caps = manager.getNetworkCapabilities(network);
+                if (caps == null || !caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) continue;
+                LinkProperties props = manager.getLinkProperties(network);
+                if (props == null) continue;
+                for (LinkAddress link : props.getLinkAddresses()) {
+                    addPrefix(prefixes, link.getAddress());
+                }
+            }
+        } catch (Exception ignored) {
+            return prefixes;
+        }
+        if (!prefixes.isEmpty()) return prefixes;
+        try {
+            WifiManager wifi = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+            if (wifi == null) return prefixes;
+            int ip = wifi.getConnectionInfo().getIpAddress();
+            if (ip == 0) return prefixes;
+            byte[] raw = new byte[] {
+                    (byte) (ip & 255),
+                    (byte) ((ip >> 8) & 255),
+                    (byte) ((ip >> 16) & 255),
+                    (byte) ((ip >> 24) & 255)
+            };
+            addPrefix(prefixes, InetAddress.getByAddress(raw));
+        } catch (Exception ignored) {
+            return prefixes;
+        }
+        return prefixes;
+    }
+
+    private List<String> interfacePrefixes() {
+        List<String> prefixes = new ArrayList<String>();
+        try {
+            Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
+            while (interfaces.hasMoreElements()) {
+                NetworkInterface item = interfaces.nextElement();
+                if (!item.isUp()) continue;
+                Enumeration<InetAddress> addresses = item.getInetAddresses();
+                while (addresses.hasMoreElements()) addPrefix(prefixes, addresses.nextElement());
+            }
+        } catch (Exception ignored) {
+            return prefixes;
+        }
+        return prefixes;
+    }
+
+    private void addPrefix(List<String> prefixes, InetAddress address) {
+        if (!(address instanceof Inet4Address) || address.isLoopbackAddress() || address.isLinkLocalAddress()) return;
+        byte[] raw = address.getAddress();
+        String prefix = (raw[0] & 255) + "." + (raw[1] & 255) + "." + (raw[2] & 255) + ".";
+        if (!prefixes.contains(prefix)) prefixes.add(prefix);
+    }
+
     private boolean reachable(String host) {
         HttpURLConnection connection = null;
         try {
             connection = (HttpURLConnection) new URL("http://" + host + ":5173/").openConnection();
-            connection.setConnectTimeout(350);
-            connection.setReadTimeout(350);
+            connection.setConnectTimeout(700);
+            connection.setReadTimeout(700);
             connection.setInstanceFollowRedirects(true);
             InputStream stream = connection.getInputStream();
             byte[] buffer = new byte[600];
