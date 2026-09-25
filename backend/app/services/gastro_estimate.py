@@ -77,13 +77,10 @@ def gastro_six_month_estimate(live_stocks: dict[str, int] | None = None) -> dict
             }
         )
     return {
-        "scenario": "Epidemie de gastro, 6 mois, prevalence 15 %",
+        "scenario": "",
         "crew_size": CREW_SIZE,
         "sick_at_once": SICK_AT_ONCE,
         "waves": WAVES,
         "rows": rows,
-        "conclusion": (
-            "Le stock de demonstration ne couvre pas 6 mois au pic. "
-            "Le rationnement, l'ORS en priorite et les cultures locales deviennent indispensables."
-        ),
+        "conclusion": "",
     }

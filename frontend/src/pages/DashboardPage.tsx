@@ -115,8 +115,6 @@ export default function DashboardPage() {
       {gastro.data && (
         <section className="glass-panel gastro-panel">
           <span className="eyebrow">Annexe logistique</span>
-          <h2>{gastro.data.scenario}</h2>
-          <p>{gastro.data.conclusion}</p>
           <ul className="finding-list">
             {gastro.data.rows.map((row) => (
               <li key={row.drug_code}>
