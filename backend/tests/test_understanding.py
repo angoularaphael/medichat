@@ -1,6 +1,19 @@
 from app.services import message_understanding
 
 
+def test_everyday_pain_phrases_for_another_crew_member():
+    cases = {
+        "ELISA A DES MAUX DE TETES": "mal de tete",
+        "Elsa a des maux de dos": "mal de dos",
+        "Jovani a des maux de ventre": "mal de ventre",
+        "Carine a mal a la gorge": "mal de gorge",
+    }
+    for msg, label in cases.items():
+        u = message_understanding.understand_message_rules(msg, "raphael")
+        assert label in u.symptom_labels, msg
+        assert u.care_crew_code != "raphael"
+
+
 def test_elisa_maux_de_tete_is_understood():
     msg = "ELISA A DES MAUX DE TETES"
     u = message_understanding.understand_message_rules(msg, "raphael")

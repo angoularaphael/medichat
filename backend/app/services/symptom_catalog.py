@@ -130,13 +130,33 @@ ROUTINE_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     ),
     (re.compile(r"constip|pas de selle|ventre bloqu", re.I), "constipation"),
     (re.compile(r"reflux|br[uû]lure d[' ]estomac|aigreur", re.I), "reflux"),
-    (re.compile(r"mal de dos|lombalgie|dorsalgie|courbature", re.I), "mal de dos"),
+    (
+        re.compile(
+            r"maux? de dos|mal de dos|mal au dos|dos qui fait mal|lombalgie|dorsalgie|courbature",
+            re.I,
+        ),
+        "mal de dos",
+    ),
     (re.compile(r"mal de l[' ]espace|cin[eé]tose|mal des transports", re.I), "mal de l'espace"),
     (re.compile(r"congestion|nez bouch|sinus|rhume|ecoulement nasal", re.I), "congestion"),
     (re.compile(r"toux|touss|cough", re.I), "toux"),
-    (re.compile(r"mal au ventre|douleur abdominale|abdominal|colique", re.I), "mal de ventre"),
+    (
+        re.compile(
+            r"maux? (?:de|au) ventre|mal au ventre|mal de ventre|ventre qui fait mal|"
+            r"douleur abdominale|abdominal|colique",
+            re.I,
+        ),
+        "mal de ventre",
+    ),
     (re.compile(r"vertige|[ée]tourdissement|dizzy", re.I), "vertige"),
-    (re.compile(r"mal de gorge|gorge.*mal|sore throat|angine", re.I), "mal de gorge"),
+    (
+        re.compile(
+            r"maux? de gorge|mal de gorge|mal (?:a|à) la gorge|gorge qui fait mal|"
+            r"gorge.*mal|sore throat|angine",
+            re.I,
+        ),
+        "mal de gorge",
+    ),
     (re.compile(r"infection|infecte|plaie|antibiot", re.I), "infection"),
     (
         re.compile(
