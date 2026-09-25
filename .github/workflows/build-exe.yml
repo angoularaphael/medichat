@@ -1,0 +1,33 @@
+name: Build EXE
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - packaging/desktop/**
+      - .github/workflows/build-exe.yml
+
+jobs:
+  exe:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Telecharger WebView2
+        shell: pwsh
+        run: |
+          $dest = Join-Path $env:RUNNER_TEMP "webview2"
+          curl.exe -L -o "$env:RUNNER_TEMP\webview2.nupkg" "https://www.nuget.org/api/v2/package/Microsoft.Web.WebView2/1.0.2792.45"
+          Copy-Item "$env:RUNNER_TEMP\webview2.nupkg" "$env:RUNNER_TEMP\webview2.zip"
+          Expand-Archive "$env:RUNNER_TEMP\webview2.zip" $dest
+          New-Item -ItemType Directory -Force -Path out | Out-Null
+          Copy-Item "$dest\lib\net462\Microsoft.Web.WebView2.Core.dll" out
+          Copy-Item "$dest\lib\net462\Microsoft.Web.WebView2.WinForms.dll" out
+          Copy-Item "$dest\runtimes\win-x64\native\WebView2Loader.dll" out
+          $csc = "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
+          & $csc /nologo /target:winexe /out:out\EIR.exe /r:out\Microsoft.Web.WebView2.Core.dll /r:out\Microsoft.Web.WebView2.WinForms.dll /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.Net.Http.dll packaging\desktop\EirWindow.cs
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: EIR-exe
+          path: out/*
