@@ -36,7 +36,14 @@ jobs:
 
       - name: Compiler l'APK
         working-directory: packaging/android
-        run: gradle assembleDebug --no-daemon
+        run: |
+          set +e
+          gradle assembleDebug --no-daemon --stacktrace > "$RUNNER_TEMP/apk-build.log" 2>&1
+          code=$?
+          tail -n 30 "$RUNNER_TEMP/apk-build.log" | while IFS= read -r line; do
+            echo "::error title=APK::$line"
+          done
+          exit $code
 
       - uses: actions/upload-artifact@v4
         with:
