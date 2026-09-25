@@ -11,10 +11,11 @@ import {
   Sparkles,
   Users,
 } from "lucide-react";
-import type { CSSProperties } from "react";
+import { useState, type CSSProperties } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { api } from "../api/client";
+import { api, type Drug } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
+import { setVoiceEnabled, speak } from "../speech/speak";
 
 const reveal = {
   hidden: { opacity: 0, y: 18 },
@@ -24,6 +25,51 @@ const reveal = {
     transition: { delay: index * 0.07, duration: 0.45 },
   }),
 };
+
+function situationSpeech(
+  crisis: boolean,
+  days: number,
+  rationedDays: number,
+  sick: number,
+  drugs: Drug[],
+): string {
+  const empty = drugs.filter((drug) => drug.stock_units <= 0);
+  const names = empty
+    .slice(0, 4)
+    .map((drug) => drug.name)
+    .join(", ");
+  const parts: string[] = [];
+  const hold = Math.max(0, Math.round(days));
+  const rationed = Math.max(0, Math.round(rationedDays));
+  if (crisis) {
+    parts.push("Situation de crise.");
+  } else if (empty.length > 0 || hold < 14) {
+    parts.push("Situation tendue.");
+  } else {
+    parts.push("Situation normale.");
+  }
+  parts.push(
+    sick === 0
+      ? "Personne n'est marque malade."
+      : sick === 1
+        ? "Une personne est marquee malade."
+        : `${sick} personnes sont marquees malades.`,
+  );
+  if (empty.length === 0) {
+    parts.push(`Au rythme actuel, l'armoire tient encore ${hold} jours.`);
+  } else {
+    parts.push(`Il n'y a plus de ${names}.`);
+    parts.push(
+      hold <= 0
+        ? "Ce qui reste ne couvre plus le rythme actuel."
+        : `Ce qui reste tient encore ${hold} jours.`,
+    );
+  }
+  if (crisis || empty.length > 0 || hold < 14) {
+    parts.push(`Si on rationne, on peut tenir ${rationed} jours.`);
+  }
+  return parts.join(" ");
+}
 
 function StockCurve({
   points,
@@ -82,6 +128,23 @@ export default function DashboardPage() {
   const criticalStocks = drugs.data?.filter((drug) => drug.is_critical).length ?? 0;
   const sick = autonomy.data?.on_demand.sick_count ?? 0;
   const readyPlants = plants.data?.filter((plant) => plant.ready).length ?? 0;
+  const [analysis, setAnalysis] = useState("");
+
+  function analyseStock() {
+    const text =
+      autonomy.data && drugs.data
+        ? situationSpeech(
+            Boolean(autonomy.data.crisis_active),
+            days,
+            rationedDays,
+            sick,
+            drugs.data,
+          )
+        : "Les chiffres du stock ne sont pas encore arrives. Reessaie dans un instant.";
+    setAnalysis(text);
+    setVoiceEnabled(true);
+    speak(text);
+  }
 
   return (
     <div className="dashboard-page">
@@ -109,6 +172,12 @@ export default function DashboardPage() {
         <div className={`mission-state ${autonomy.data?.crisis_active ? "alert" : ""}`}>
           <span />
           {autonomy.data?.crisis_active ? "Protocole de crise actif" : "Mission nominale"}
+        </div>
+        <div className="analyse-bar">
+          <button type="button" className="analyse-btn" onClick={analyseStock}>
+            Analyse
+          </button>
+          {analysis && <p className="analyse-speech">{analysis}</p>}
         </div>
       </div>
 

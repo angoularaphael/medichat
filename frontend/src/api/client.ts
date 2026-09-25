@@ -1,4 +1,13 @@
-const base = import.meta.env.VITE_API_URL || "";
+function apiBase(): string {
+  const env = import.meta.env.VITE_API_URL || "";
+  if (typeof window === "undefined") return env;
+  const host = window.location.hostname;
+  const onThisMachine = host === "localhost" || host === "127.0.0.1";
+  if (!onThisMachine && /localhost|127\.0\.0\.1/.test(env)) return "";
+  return env;
+}
+
+const base = apiBase();
 const TOKEN_KEY = "eir_access_token";
 
 export const session = {
